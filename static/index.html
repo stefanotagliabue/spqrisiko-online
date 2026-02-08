@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SPQRisiKo MVP</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 12px; }
+      input, button { font-size: 16px; padding: 10px; }
+      #log {
+        white-space: pre-wrap;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin-top: 10px;
+        height: 55vh;
+        overflow: auto;
+        border-radius: 10px;
+        background: #fafafa;
+      }
+      .row { display: flex; gap: 8px; margin: 8px 0; }
+      .row > * { flex: 1; }
+      .small { font-size: 13px; opacity: 0.8; }
+      h3 { margin-bottom: 8px; }
+    </style>
+  </head>
+
+  <body>
+    <h3>SPQRisiKo MVP — Setup & GameState</h3>
+
+    <!-- Connessione -->
+    <div class="row">
+      <input id="name" placeholder="Nome (es. Marco)" />
+      <input id="room" placeholder="Stanza (es. ABCD12)" />
+    </div>
+
+    <div class="row">
+      <button id="create">Crea stanza</button>
+      <button id="connect">Connetti</button>
+    </div>
+
+    <!-- Lobby -->
+    <div class="row">
+      <button id="ready">Ready</button>
+      <button id="start">Start Game</button>
+      <button id="reset">Reset Game</button>
+    </div>
+
+    <!-- SETUP -->
+    <div class="row">
+      <input id="prov" list="provListFree" placeholder="Tua provincia" />
+      <input id="nprov" list="provListFree" placeholder="Provincia neutrale (se richiesta)" />
+    </div>
+
+    <datalist id="provListFree"></datalist>
+    <datalist id="provListAll"></datalist>
+
+    <div class="row">
+      <button id="claim">Claim (SETUP)</button>
+    </div>
+
+    <div class="row">
+      <button id="reinforceBegin">Reinforce Begin (SCORE)</button>
+    </div>
+
+    <div class="row">
+      <input id="placements" placeholder='Placements es: ITALIA:2,CISALPINA:1' />
+    </div>
+    <div class="row">
+      <button id="reinforcePlace">Place Reinforcements</button>
+    </div>
+
+    <!-- LAND ATTACKS -->
+    <div class="row">
+      <input id="atkFrom" list="provListAll" placeholder="Attack from (provincia tua)" />
+      <input id="atkTo" list="provListAll" placeholder="Attack to (provincia nemica)" />
+    </div>
+    <div class="row">
+      <input id="atkDice" placeholder="Dadi attacco (1-3)" value="3" />
+      <button id="atkRoll">Land Attack (roll)</button>
+    </div>
+
+
+    <!-- Debug -->
+    <div class="row">
+      <button id="advance">Avanza fase (debug)</button>
+      <button id="clear">Pulisci log</button>
+    </div>
+
+    <div class="small">
+      • Usa l’autocomplete per scegliere province valide<br/>
+      • In SETUP, se richiesto, devi scegliere anche la provincia neutrale
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+      let ws = null;
+      let myPlayerId = null;
+
+      const CLIENT_VERSION = "index-v3-autocomplete";
+      const logEl = document.getElementById("log");
+
+      const log = (x) => {
+        logEl.textContent += x + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+
+      log(`🧩 client version: ${CLIENT_VERSION}`);
+
+      const genRoom = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let s = "";
+        for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+        return s;
+      };
+
+      const connect = () => {
+        const name = (document.getElementById("name").value.trim() || "anon");
+        const room = (document.getElementById("room").value.trim().toUpperCase() || "LOBBY");
+
+        const url = `ws://${location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(name)}`;
+        ws = new WebSocket(url);
+
+        ws.onopen = () => log(`✅ connesso in stanza ${room}`);
+
+        ws.onmessage = (ev) => {
+          const msg = JSON.parse(ev.data);
+
+          if (msg.type === "welcome") {
+            myPlayerId = msg.playerId;
+            log(`👤 playerId: ${myPlayerId}`);
+            return;
+          }
+
+          if (msg.type === "join") log(`🟢 ${msg.player} è entrato`);
+          if (msg.type === "leave") log(`🔴 ${msg.player} è uscito`);
+
+          if (msg.type === "state") {
+            const st = msg.state;
+            const phase = st.turn.phase;
+            const round = st.turn.round;
+            const idx = st.turn.turnIndex;
+
+            const playersLine = st.players.map(p => {
+              const r = p.ready ? "✅" : "⬜";
+              const c = p.color ? `(${p.color})` : "";
+              return `${r} ${p.name}${c}`;
+            }).join(" | ");
+
+            log(`📌 round=${round} phase=${phase} turnIndex=${idx}`);
+            log(`👥 ${playersLine}`);
+
+            
+            // aggiorna datalist province
+            if (st.map && st.map.provinces) {
+              const provinces = st.map.provinces;
+
+              // --- PROVINCE LIBERE (SETUP) ---
+              const dlFree = document.getElementById("provListFree");
+              if (dlFree) {
+                const freeIds = Object.keys(provinces)
+                  .filter(id => provinces[id] && provinces[id].owner === null)
+                  .sort();
+                dlFree.innerHTML = freeIds.map(id => `<option value="${id}"></option>`).join("");
+              }
+
+              // --- TUTTE LE PROVINCE (ATTACCHI / DEBUG) ---
+              const dlAll = document.getElementById("provListAll");
+              if (dlAll) {
+                const allIds = Object.keys(provinces).sort();
+                dlAll.innerHTML = allIds.map(id => `<option value="${id}"></option>`).join("");
+              }
+
+              // pulizia input se diventano invalidi (solo setup)
+              const provEl = document.getElementById("prov");
+              const nprovEl = document.getElementById("nprov");
+
+              if (provEl) {
+                const v = provEl.value.trim().toUpperCase();
+                if (v && provinces[v] && provinces[v].owner !== null) provEl.value = "";
+              }
+              if (nprovEl) {
+                const v = nprovEl.value.trim().toUpperCase();
+                if (v && provinces[v] && provinces[v].owner !== null) nprovEl.value = "";
+              }
+            }
+
+          }
+
+          if (msg.type === "error") log(`❌ ERROR: ${msg.error}`);
+        };
+
+        ws.onclose = () => log("❌ disconnesso");
+      };
+
+      const sendCmd = (cmd, payload = {}) => {
+        if (!ws || ws.readyState !== 1) return log("⚠️ non connesso");
+        if (!myPlayerId) return log("⚠️ manca welcome/playerId");
+        ws.send(JSON.stringify({ type: "cmd", cmd, playerId: myPlayerId, payload }));
+      };
+
+      // --- UI handlers ---
+      document.getElementById("create").onclick = () => {
+        const r = genRoom();
+        document.getElementById("room").value = r;
+        log(`🔑 stanza creata: ${r}`);
+      };
+
+      document.getElementById("connect").onclick = () => connect();
+      document.getElementById("ready").onclick = () => sendCmd("ready");
+      document.getElementById("start").onclick = () => sendCmd("start_game");
+      document.getElementById("reset").onclick = () => sendCmd("reset_game");
+      document.getElementById("advance").onclick = () => sendCmd("advance_phase");
+      document.getElementById("clear").onclick = () => (logEl.textContent = "");
+
+      document.getElementById("claim").onclick = () => {
+        const provinceId = document.getElementById("prov").value.trim().toUpperCase();
+        const neutralProvinceId = document.getElementById("nprov").value.trim().toUpperCase();
+
+        log(`🧪 DEBUG claim -> provinceId='${provinceId}' neutral='${neutralProvinceId}'`);
+
+        if (!provinceId) {
+          log("❌ Inserisci la tua provincia");
+          return;
+        }
+
+        const payload = { provinceId };
+        if (neutralProvinceId) payload.neutralProvinceId = neutralProvinceId;
+
+        sendCmd("setup_claim", payload);
+      };
+
+      document.getElementById("reinforceBegin").onclick = () => sendCmd("reinforce_land_begin");
+
+      document.getElementById("reinforcePlace").onclick = () => {
+        const s = document.getElementById("placements").value.trim();
+        if (!s) return log("❌ Inserisci placements (es: ITALIA:2,CISALPINA:1)");
+
+        const placements = {};
+        for (const part of s.split(",")) {
+          const [k, v] = part.split(":").map(x => x.trim());
+          if (!k || !v) return log(`❌ formato non valido: '${part}'`);
+          placements[k.toUpperCase()] = parseInt(v, 10);
+        }
+
+        sendCmd("reinforce_land_place", { placements });
+      };
+
+      document.getElementById("atkRoll").onclick = () => {
+      const from = document.getElementById("atkFrom").value.trim().toUpperCase();
+      const to = document.getElementById("atkTo").value.trim().toUpperCase();
+      const attackDice = parseInt(document.getElementById("atkDice").value.trim(), 10) || 3;
+
+      if (!from || !to) {
+        log("❌ Inserisci atkFrom e atkTo");
+        return;
+      }
+
+      sendCmd("land_attack_roll", { from, to, attackDice });
+    };
+
+
+    </script>
+  </body>
+</html>
