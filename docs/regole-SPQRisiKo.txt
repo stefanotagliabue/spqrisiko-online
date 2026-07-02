@@ -1,0 +1,532 @@
+                              1 - Componenti
+1.1   Una plancia di gioco raffigurante una mappa dell'Impero Romano, suddivisa
+      in 45 Province e 12 aree di mare e con una sezione (sotto la scritta
+      SPQRisiKo!) destinata al conteggio dei Punti Vittoria.
+1.2   Una dotazione di pezzi di gioco in plastica in 5 diversi colori, raffiguranti
+      legionari, vessilli e triremi.
+1.3   Una dotazione di 12 pezzi in plastica di colore neutro raffiguranti delle arene
+      (denominati Centri di Potere).
+1.4   3 dadi rossi.
+1.5   3 dadi blu.
+1.6   Un mazzo di 55 carte speciali.
+1.7   Un regolamento.
+                           2 - Il gioco in breve
+2.1   SPQRisiKo è una nuova versione del celebre gioco Risiko, ambientata all'epoca
+      dell'Impero Romano e, più precisamente, tra il 234 e il 284 d.C., un periodo di
+      totale anarchia militare durante il quale si succedettero numerosi imperatori,
+      quasi tutti provenienti dalle file dell'esercito (sull'argomento, al termine del
+      regolamento, potete leggere delle note storiche più approfondite).
+2.2   In SPQRisiKo, ogni giocatore interpreta il ruolo di un comandante militare che
+      deve dimostrare il proprio valore e la propria capacità strategica, al fine di
+      accumulare Punti Vittoria ed essere proclamato Nuovo Imperatore.
+2.3   SPQRisiKo si svolge su una mappa che raffigura i confini dell'Impero Romano,
+      suddiviso in 45 Province e 12 aree di mare. I nomi ed i confini tracciati sulla
+      mappa sono stati adattati alle esigenze del gioco e hanno come unico obiettivo
+      quello di creare uno scenario verosimile, senza alcuna pretesa di precisione
+      storica.
+2.4   Il gioco si svolge a turni e, all'inizio di ciascun turno, ogni giocatore può
+      acquisire dei Punti Vittoria in base alle conquiste fatte in precedenza. Questi
+      punti vengono segnati sull'apposita sezione della plancia di gioco e colui che
+      raggiungerà per primo il punteggio prefissato all'inizio della partita sarà
+      proclamato Nuovo Imperatore.
+2.5   All'inizio della partita è dunque possibile decidere di giocare con un limite di
+      tempo oppure fino al raggiungimento di un determinato punteggio, in modo da
+      adeguare la durata della partita alle proprie esigenze.
+2.6   SPQRisiKo, si gioca sempre utilizzando i 5 eserciti disponibili, anche se i
+      giocatori sono in numero inferiore. I colori in eccesso saranno infatti utilizzati
+      come eserciti neutrali, incapaci di effettuare attacchi, ma in grado di difendersi.
+                                           1
+                     3 - Preparazione del gioco
+3.1    Prima di iniziare, determinate a quale punteggio fissare la vittoria, oppure
+       stabilite un limite massimo di tempo sulla base del vostro stile di gioco.
+3.2    Lanciate i dadi per determinare l'ordine di gioco, quindi lasciate che ciascuno,
+       nell'ordine stabilito, decida con quale colore giocare, prendendo i pezzi relativi.
+3.3    Se giocate in 3, prendete 27 legionari per ogni colore non utilizzato e
+       suddivideteli in 9 gruppi da 3 (ovviamente ogni gruppo composto solo da
+       legionari dello stesso colore), quindi collocate questi gruppi a portata di
+       mano, ma fuori dalla plancia di gioco.
+3.4    Se giocate in 4, prendete 27 legionari del colore non utilizzato, collocatene
+       3 sulla plancia in corrispondenza del territorio “Italia” e suddividete i
+       restanti in 8 gruppi da 3 legionari ciascuno, tenendoli a portata di mano, ma
+       fuori dalla plancia di gioco.
+3.5    Mettete in corrispondenza della casella 0 sul segnapunti un legionario (o un
+       vessillo) per ogni giocatore. Questi pezzi serviranno per tenere conto dei
+       Punti Vittoria acquisiti da ciascuno nel corso del gioco.
+3.6    A questo punto siete pronti per la fase di occupazione iniziale delle
+       Province.
+3.7    Ogni giocatore, a turno, deve occupare con 2 legionari del proprio colore
+       una delle Province libere e, se si gioca in meno di 5, occupare anche una
+       Provincia libera con uno dei gruppi di 3 legionari neutrali, scegliendo
+       liberamente fra quelli disponibili.
+3.8    L'operazione viene ripetuta fino a che non vi sono più pezzi neutrali da
+       mettere in gioco. Da quel momento in avanti si continua con la semplice
+       occupazione delle Province ancora libere con i legionari dei giocatori.
+3.9    Al termine di questa fase i giocatori avranno tutti 9 Province occupate da 2
+       legionari, mentre le Province neutrali saranno difese da 3 legionari.
+3.10   Durante questa fase iniziale del gioco, le aree di mare non sono occupate da
+       alcun giocatore, quindi le triremi non vengono poste in gioco, mentre i
+       segnalini raffiguranti i vessilli potranno essere utilizzati in seguito per
+       agevolare il posizionamento dei legionari (ogni vessillo rappresenta 10
+       legionari).
+3.11   Tenete a portata di mano i 12 Centri di Potere, mischiate accuratamente il
+       mazzo di carte ponendolo coperto vicino alla plancia di gioco e preparatevi
+       al primo turno.
+
+
+                                            2
+                          4 - Il turno di gioco
+4.1   Il gioco si suddivide in turni, che si susseguono fino a che uno dei
+      partecipanti non abbia raggiunto il punteggio predeterminato per la vittoria
+      oppure non si raggiunga il limite di tempo.
+4.2   Il turno di ogni giocatore è suddiviso in una serie di fasi, qui di seguito
+      riassunte, che devono essere svolte nell'esatto ordine indicato.
+4.3   Aggiornamento del punteggio
+      4.3.1 All'inizio del turno, il giocatore può acquisire Punti Vittoria in base ad
+            alcune condizioni spiegate in dettaglio più avanti. Se un giocatore
+            raggiunge il punteggio prefissato, la partita si conclude
+            istantaneamente con la sua vittoria.
+4.4   Fase dei rinforzi
+      4.4.1 In questa fase del proprio turno si acquisiscono rinforzi da collocare
+            sulla plancia di gioco. Questo è anche il momento nel quale è possibile
+            giocare una delle possibili combinazioni di carte (vedere in seguito)
+            per ottenere rinforzi supplementari (ed eventualmente anche
+            collocare i Centri di Potere rappresentati dalle arene).
+      4.4.2 La fase dei rinforzi prevede la possibilità di disporre sia di nuovi
+            legionari che di triremi, secondo le regole indicate in seguito.
+4.5   Movimento navale
+      4.5.1 E' la fase nella quale si possono muovere le proprie triremi da un'area
+            di mare ad un'altra area di mare adiacente.
+4.6   Combattimento navale
+      4.6.1 E' la fase nella quale si possono attaccare le triremi avversarie.
+4.7   Attacchi Via Mare
+      4.7.1 Gli attacchi via mare consentono di effettuare un attacco con i propri
+            legionari fra due Province adiacenti alla stessa area di mare,
+            utilizzando le triremi come “trasporto”.
+4.8   Attacchi terrestri
+      4.8.1 In questa fase si possono attaccare Province nemiche confinanti via
+            terra con le proprie.
+4.9   Spostamento strategico di fine turno
+      4.9.1 Si tratta di un singolo movimento di legionari all'interno dei propri
+            confini, secondo le regole indicate in seguito.
+
+                                         3
+4.10   Presa della carta
+       4.10.1Qualora ne abbia acquisito il diritto, il giocatore può pescare una
+             carta dal mazzo. Questo gesto sancisce, in ogni caso e senza
+             eccezioni, la fine del suo turno.
+
+               5 - Aggiornamento del Punteggio
+5.1    Il gioco si basa su un sistema di Punti Vittoria che i giocatori acquisiscono
+       all'inizio di ogni loro turno.
+5.2    Il raggiungimento di un predeterminato punteggio finale è lo scopo del gioco
+       ed è possibile decidere, prima dell'inizio del gioco, quale dovrà essere il
+       punteggio da raggiungere.
+5.3    I punti si segnano nell'apposito spazio sulla plancia di gioco, utilizzando un
+       legionario (o un vessillifero) per ogni giocatore.
+5.4    I Punti Vittoria devono essere reclamati dal giocatore di turno come prima
+       azione del proprio turno di gioco e non è possibile ottenerli al di fuori di
+       questo momento.
+5.5    Se un giocatore dimentica di reclamare i suoi Punti Vittoria, non potrà farlo
+       in seguito.
+5.6    I Punti Vittoria si acquisiscono sulla base dei seguenti requisiti:
+       5.6.1 Maggiore “impero”, ovvero un insieme di Province fra di loro collegate
+             in modo da formare un singolo insieme ininterrotto di territori.
+             Ricordate che non esiste collegamento fra Province divise da tratti di
+             mare, quindi le isole non possono far parte del conto. Inoltre, per
+             essere valido ai fini dei Punti Vittoria, questo “impero” deve essere
+             composto da non meno di 4 Province e deve essere il più grande in
+             assoluto (quindi niente Punti Vittoria in caso di parità con un altro
+             giocatore). Se il giocatore di turno possiede l'impero maggiore,
+             guadagna un Punto Vittoria.
+       5.6.2 Maggior numero di Province. Se il giocatore di turno controlla più
+             Province di chiunque altro (indipendentemente dalla loro posizione
+             geografica), guadagna un Punto Vittoria. In caso di parità con un altro
+             giocatore, non si guadagna nulla.
+       5.6.3 Controllo dei mari. Il giocatore che controlla il maggior numero di
+             aree di mare, ottiene un Punto Vittoria. Un'area di mare si considera
+             sotto il controllo di un giocatore se questi possiede più triremi in
+             quell'area di chiunque altro. In caso di parità con uno o più avversari,
+             il Punto Vittoria non viene assegnato.
+                                           4
+      5.6.4 Centri di Potere. Ogni Centro di Potere (i segnalini a forma di arena)
+            fornisce un Punto Vittoria al giocatore che lo controlla. I Centri di
+            Potere vengono infatti collocati nel corso del gioco all'interno delle
+            Province e, da quel momento, appartengono al giocatore che
+            controlla quella Provincia. Lo stesso Centro di Potere può quindi
+            passare sotto il controllo di diversi giocatori nel corso della partita.
+
+                         6 - Rinforzi terrestri
+6.1   Il giocatore riceve 3 legionari di rinforzo se controlla fra 3 e 11 Province.
+6.2   Se controlla più di 11 Province, riceve un legionario di rinforzo ogni 3
+      Province possedute, arrotondando sempre verso il basso (12 Province = 4
+      legionari, 13 o 14 Province = 4 legionari, 15 Province = 5 legionari ecc. ecc.).
+6.3   Se possiede meno di 3 Province, riceve un solo legionario di rinforzo.
+6.4   I legionari di rinforzo possono essere liberamente collocati all'interno delle
+      Province controllate dal giocatore di turno, senza alcun vincolo.
+6.5   Il giocatore riceve anche un legionario di rinforzo in ogni Provincia in suo
+      possesso nella quale vi sia un Centro di Potere. Questi legionari devono
+      essere obbligatoriamente collocati all'interno delle Province occupate da un
+      Centro di Potere, uno per ogni Provincia.
+6.6   In questa fase, il giocatore può anche decidere di “trasformare” una sua
+      trireme in 2 legionari, che devono essere collocati in una sua Provincia
+      adiacente all'area di mare occupata dalla trireme “sacrificata” (che viene
+      tolta dalla plancia di gioco).
+
+                           7 - Rinforzi navali
+7.1   Dopo aver collocato i rinforzi terrestri, il giocatore può decidere di
+      “trasformare” alcuni dei suoi legionari in triremi, in ragione di una trireme
+      ogni 3 legionari.
+7.2   Per ottenere una trireme, il giocatore deve quindi togliere 3 legionari da una
+      sua Provincia adiacente ad un'area di mare e collocare, su quella stessa area
+      di mare, una trireme.
+7.3   Non ci sono limiti al numero di triremi che possono essere messe in campo
+      in questo modo, ma non è possibile utilizzare legionari in Province diverse
+      per ottenere una trireme.
+7.4   Le triremi si possono ottenere anche giocando un tris di carte che contenga
+      il simbolo della trireme (come spiegato nel prossimo capitolo, dedicato ai
+      tris di carte).
+                                         5
+                                8 - Tris di carte
+8.1   Durante la fase dei rinforzi, è possibile utilizzare tris di carte
+      precedentemente conquistate per aumentare il numero di rinforzi da
+      collocare in campo al proprio turno.
+8.2   I tris di carte possono essere giocati solo ed esclusivamente durante la
+      propria fase di rinforzo.
+8.3   Sulle carte sono raffigurati 4 simboli: il legionario, la trireme, l'arena e il vessillo.
+8.4   E' possibile cambiare tris composti da tre carte uguali oppure da tre carte
+      diverse.
+8.5   I tris composti da carte uguali consentono di ricevere 8 legionari di rinforzo.
+8.6   I tris composti da 3 carte diverse consentono di ricevere 10 legionari di
+      rinforzo.
+8.7   In aggiunta, si possono ottenere ulteriori rinforzi in base alle carte che
+      compongono il tris:
+      8.7.1 Per ogni carta raffigurante un vessillo, si ottengono 2 legionari
+            supplementari.
+      8.7.2 Per ogni carta raffigurante una trireme, si ottiene una trireme, che
+            deve obbligatoriamente essere collocata in un'area di mare adiacente
+            ad una Provincia controllata dal giocatore, in mancanza della quale si
+            perde il diritto a mettere in campo questo pezzo supplementare.
+      8.7.3 Se il tris contiene una carta raffigurante l'arena si ottiene un Centro
+            di Potere da collocare all'interno di una propria Provincia, rispettando
+            le regole di posizionamento indicate in seguito. Se il giocatore non è
+            in grado di collocare il Centro di Potere secondo le regole, deve
+            rinunciare al beneficio di questa carta.
+8.8   Un giocatore non è obbligato ad utilizzare tutti i benefici derivanti dalle
+      carte del proprio tris.
+8.9   I tris giocati vengono posti in un mazzo degli scarti (eventualmente è
+      possibile collocarli scoperti al di sotto del mazzo da cui pescare) per essere
+      rimischiati e rimessi in gioco quando il mazzo da cui pescare si esaurisce.
+
+
+
+
+                                             6
+       8 legionari                  12 legionari e una trireme                 8 legionari e 3 triremi
+
+
+
+
+                     14 legionari                         8 legionari e 3 centri di potere
+
+                            Alcuni esempi di tris validi con il loro valore.
+
+
+
+                           9 - Movimento navale
+9.1    Le triremi occupano le 12 aree di mare, che sono suddivise da un confine
+       tratteggiato e caratterizzate da un nome.
+9.2    All'interno della stessa area di mare, diversamente da quanto accade
+       all'interno delle Province, vi possono essere triremi di diversi giocatori.
+9.3    Il giocatore di turno ha la possibilità di effettuare un singolo movimento di
+       triremi del proprio colore, da una area di mare ad un'altra area di mare
+       adiacente.
+9.4    Non c'è limite al numero delle triremi che si possono spostare, ma nel
+       corso del proprio turno si ha diritto ad un solo movimento.
+9.5    Il movimento navale deve avvenire prima di qualsiasi combattimento.
+9.6    Il movimento navale è del tutto indipendente dallo spostamento strategico
+       di fine turno, descritto in seguito.
+
+                             10 - Combattimenti
+10.1   Vi sono tre tipi distinti di combattimento: navale, via mare e terrestre.
+10.2   Ciascuno di questi combattimenti segue alcune regole speciali descritte in
+       seguito, ma tutti si svolgono in base ad uno schema simile a quello di Risiko,
+       qui di seguito descritto.
+10.3   Ogni combattimento è suddiviso in una serie di attacchi.
+10.4   Ad ogni attacco possono partecipare, sia in attacco che in difesa, al massimo
+       3 unità (legionari o triremi a seconda del tipo di combattimento) e per ogni
+       unità utilizzata si lancia un dado (rosso per chi attacca e blu per chi difende).
+10.5   Il difensore ha l'obbligo di usare sempre il maggior numero di dadi possibile
+                                                   7
+       (non può quindi decidere di utilizzare solo una o due unità se è nella
+       condizione di difendersi con tre).
+10.6   Per ogni unità coinvolta nell'attacco, si lancia un dado (quindi al massimo 3
+       dadi sia per l'attaccante che per il difensore), poi si confrontano i singoli
+       punteggi, dopo aver ordinato i dadi in ordine decrescente.
+10.7   Il dado dell'attaccante con il punteggio più alto viene confrontato con quello
+       con il punteggio più alto del difensore, quindi si passa al secondo e al terzo.
+10.8   Se un giocatore ha lanciato meno dadi dell'avversario, il confronto avviene
+       solo fra quelli possibili (ad esempio: se uno lancia 3 dadi e l'atro solo due, si
+       confrontano solo due risultati, con un vantaggio per chi ha lanciato 3 dadi
+       che può, di fatto, ignorare il punteggio più basso).
+10.9   Se il punteggio dell'attaccante è superiore a quello del difensore, si elimina
+       un'unità del difensore.
+10.10 Se il punteggio del difensore è superiore a quello dell'attaccante, si elimina
+      un'unità dell'attaccante.
+10.11 Se il punteggio è pari, vince il difensore, salvo diversamente previsto dalle regole.
+10.12 Dopo ogni attacco, il giocatore di turno ha la facoltà di decidere se
+      proseguire o meno il combattimento dichiarando un nuovo attacco.
+10.13 In nessun caso si può sferrare un attacco potendo lanciare meno dadi del
+      difensore.
+               Esempio giocata 1                            Esempio giocata 2
+
+
+                                                           l’attaccante perde un’unità
+
+
+              l’attaccante perde un’unità
+                    il difensore anche                      Esempio giocata 4
+
+               Esempio giocata 3
+
+
+
+
+              Il difensore perde un’unità                  Il difensore perde un’unità
+                                                            l’attaccante ne perde due
+
+
+                        Attaccante                    Difensore
+
+
+                                            8
+                   11 - Combattimento Navale
+11.1   Le aree di mare sono zone “neutre”, che possono essere
+       contemporaneamente occupate da triremi di tutti i giocatori e i
+       combattimenti navali si svolgono, diversamente da quelli terrestri, all'interno
+       della stessa area.
+11.2   I combattimenti navali si svolgono prima di qualsiasi combattimento
+       terrestre o via mare.
+11.3   Il giocatore di turno che intenda effettuare un combattimento navale, deve
+       semplicemente dichiarare l'area di mare e il colore del suo avversario.
+11.4   Il giocatore di turno può sferrare tanti combattimenti navali, quante sono le
+       aree di mare da lui occupate con almeno una trireme, ma all'interno della
+       stessa area è consentito un solo combattimento a turno.
+11.5   I combattimenti navali si svolgono seguendo le regole indicate nel paragrafo
+       precedente, ma in caso di parità di punteggio non vince né l'attaccante, né il
+       difensore.
+11.6   Il giocatore di turno può decidere di protrarre un combattimento navale fino
+       a che il lancio dei dadi comporta l'eliminazione di almeno una trireme,
+       indipendentemente se dell'attaccante o del difensore. Se, invece, il risultato
+       non comporta alcuna perdita, il combattimento deve immediatamente
+       cessare.
+11.7   I combattimenti navali non devono sottostare alle norme riguardanti le
+       guarnigioni (vedere in seguito).
+                                                 Il rosso decide di attaccare le triremi del giocatore blu.
+
+
+                                                         Il risultato del combattimento è il seguente:
+
+
+
+
+                                                                   Il rosso attacca ancora
+
+
+                                                                    e perde una trireme
+
+
+
+                                                                   Il rosso attacca ancora:
+
+
+                                                             nessuna perdita. Il combattimento
+                                                                   non può continuare
+
+                            Un esempio di combattimento navale.
+
+                                            9
+                      12 - Combattimento via mare
+12.1   L'attacco via mare avviene fra due Province confinanti con la stessa area di mare.
+12.2   Per poter effettuare questo speciale tipo di attacco, è necessario possedere
+       nell'area di mare utilizzata come “ponte”, un numero di triremi superiore a
+       quello del giocatore che si vuole attaccare (quindi, non necessariamente più
+       di chiunque altro).
+12.3   Diversamente dal normale combattimento terrestre, il giocatore deve
+       dichiarare in anticipo quanti legionari utilizzerà (possibilmente collocandoli
+       vicino alla costa della Provincia che si vuole attaccare, in modo da non
+       creare confusione) e il combattimento dovrà essere portato avanti ad
+       oltranza, sino alla conquista del territorio oppure sino alla completa
+       eliminazione dell'esercito attaccante.
+12.4   Non è possibile utilizzare legionari provenienti da Province diverse, quindi
+       tutte le unità attaccanti devono essere prelevate dalla stessa Provincia,
+       rispettando le regole riguardanti le Guarnigioni (vedere in seguito).
+12.5   Al di là di queste particolarità, il combattimento via mare si svolge secondo
+       le normali regole di combattimento.
+12.6   Nello stesso turno non si può attaccare via mare due volte la stessa
+       Provincia, neppure da aree di mare diverse.
+12.7   Dalle Province occupate a seguito di un attacco via mare è possibile
+       sferrare, nello stesso turno, un successivo attacco via terra, ma non un
+       nuovo attacco via mare.
+
+
+
+
+                  Un esempio di come sia possibile utilizzare le triremi come “ponte”.
+       Notate come il rosso non possa attaccare il giallo a causa del numero di triremi non superiore.
+
+                                                     10
+                  13 - Combattimento terrestre
+13.1   Il combattimento terrestre avviene fra due Province adiacenti e l'attaccante
+       deve dichiarare sia la Provincia attaccante sia quella che intende attaccare,
+       prima di lanciare i dadi.
+13.2   Al termine di ogni lancio di dadi, il giocatore di turno può proseguire
+       nell'attacco semplicemente lanciando nuovamente i dadi. L'azione di lanciare
+       i dadi è sempre considerata vincolante.
+13.3   Se il difensore perde tutte le sue legioni, l'attaccante ha l'obbligo di occupare
+       la Provincia appena conquistata con un numero di legionari non inferiore a
+       quelle utilizzate per l'ultimo attacco.
+13.4   L'attaccante ha anche la facoltà di spostare nella Provincia appena
+       conquistata quante armate desidera, muovendole dalla Provincia dalla quale
+       ha sferrato l'ultimo attacco. Questo movimento, non ha nulla a che vedere
+       con lo spostamento strategico di fine turno.
+13.5   Dalla Provincia appena conquistata è possibile iniziare un nuovo
+       combattimento terrestre.
+13.6   Le Province separate anche solo da un breve tratto di mare (ad esempio la
+       Sicilia e l'Italia) sono da considerare, senza alcuna eccezione, non adiacenti.
+       Le linee tratteggiate servono a delimitare i confini delle aree di mare e non
+       costituiscono, in nessun caso, un collegamento terrestre fra due Province
+
+                              14 - Guarnigioni
+14.1   A difesa di una Provincia è necessario che vi sia sempre almeno un legionario.
+       Questo legionario non può essere utilizzato in fase di attacco, quindi se un
+       giocatore possiede un totale di 3 soli legionari all'interno di una Provincia,
+       potrà usarne al massimo 2 per sferrare un attacco terrestre o via mare.
+14.2   Oltre a questa limitazione, un giocatore non può mai lasciare
+       volontariamente, a seguito di uno spostamento, meno di 2 legionari in difesa
+       di una propria Provincia confinante con una Provincia nemica. L'unica
+       eccezione riguarda alcuni casi limite (ad esempio un attacco vincente con 3
+       legionari partito da una Provincia con 4 legionari in tutto) che si possono
+       verificare al termine di un combattimento.
+14.3   La regola della guarnigione minima di 2 legionari influenza anche il numero
+       massimo di legionari utilizzabili per un attacco via mare (quindi da una
+       Provincia occupata da 4 legionari e confinante con una Provincia nemica,
+       potrò usare al massimo 2 legionari per un eventuale attacco via mare).
+
+
+                                          11
+         15 - Spostamento strategico di fine turno
+15.1   Al termine del suo turno, il giocatore può effettuare uno spostamento di
+       legionari da una Provincia in suo possesso ad un'altra adiacente, sempre in
+       suo possesso.
+15.2   Lo spostamento strategico di fine turno può avvenire anche attraverso
+       un'area di mare, purché il giocatore disponga di un numero di triremi
+       superiore a quello di tutti gli altri giocatori presenti nella stessa area di mare.
+15.3   Il numero di legionari trasportabili via mare non è vincolato dal numero di
+       triremi disponibili nell'area di mare (quindi una singola trireme può
+       trasportare un numero virtualmente infinito di legionari).
+15.4 Lo spostamento via mare non può avvenire attraverso più di un'area di
+     mare.
+15.5   In ogni caso, il giocatore di turno può eseguire un solo spostamento
+       strategico.
+15.6   Lo spostamento strategico sancisce in modo vincolante la fine del turno del
+       giocatore.
+
+                         16 - I Centri di Potere
+16.1   Nel gioco sono presenti 12 segnalini raffiguranti delle arene. Questi segnalini
+       rappresentano i Centri di Potere, ovvero la ricostituzione di un controllo
+       imperiale su una determinata Provincia.
+16.2   I Centri di Potere sono pezzi di colore neutro e appartengono al giocatore
+       che controlla la Provincia sulla quale sono stati collocati.
+
+16.3   La costruzione di un Centro di Potere è vincolata al cambio di un tris che
+       contenga la carta raffigurante il Centro di Potere, come già spiegato..
+16.4   Un Centro di Potere può essere collocato all'interno di una regione
+       controllata dal giocatore di turno, ma non vi possono essere due Centri di
+       Potere in territori confinanti fra di loro (per confinanti si intende via terra),
+       così come non ve ne possono essere due nella stessa Provincia.
+16.5   Ogni Centro di Potere oltre a dare un Punto Vittoria ad ogni turno produce
+       anche un legionario di rinforzo supplementare che deve essere collocato
+       nella stessa Provincia nella quale si trova il Centro di Potere nella fase di
+       rinforzo.
+
+
+
+                                           12
+                               17 - Le Carte
+17.1   Le carte si acquisiscono al proprio turno, conquistando almeno una
+       Provincia.
+17.2   Se si è conquistato almeno una Provincia, si ha diritto a pescare una carta
+       dal mazzo al termine del turno stesso.
+17.3   Ad ogni turno è possibile acquisire una sola carta, indipendentemente dal
+       numero di Province eventualmente conquistate.
+17.4   Pescare la carta sancisce in modo definitivo la fine del proprio turno.
+17.5   Se un giocatore, pur avendone diritto, dimentica di pescare una carta al
+       termine del proprio turno, può chiedere di pescarla anche in seguito, purché
+       nessun altro ne abbia, nel frattempo, pescata una e solo se tutti i giocatori
+       acconsentono.
+
+               18 - Eliminazione di un giocatore
+18.1   Se un giocatore perde la sua ultima Provincia, viene eliminato dal gioco.
+18.2   Chi lo ha eliminato acquisisce tutte le sue carte (che non può usare subito,
+       ma aggiungerà a quelle in proprio possesso).
+18.3   Eventuali triremi appartenenti al giocatore eliminato vengono tolte dal
+       gioco.
+18.4   Nessuno può essere eliminato prima della conclusione del 4° turno di gioco.
+
+
+
+
+                                         1
+                                   Note storiche
+SPQRisiKo si svolge in un'epoca ben precisa della storia dell'antica Roma, nota come
+periodo dell'anarchia militare.
+Questo periodo particolarmente caotico ed instabile inizia nel 236 d.C. con la salita
+al potere di Massimino, soldato di umilissime origini proveniente dalla Tracia. I nobili
+senatori sono quasi completamente esautorati del loro potere istituzionale a favore
+dei comandanti militari, ma il regno di Massimino sarà di breve durata come quasi tutti
+quelli che seguiranno, fino al giorno della salita al potere di Diocleziano (284 d.C.).
+In questi quasi cinquant'anni di storia si susseguono episodi di ribellione interna, segno
+evidente delle tendenze disgregatrici dell'Impero. Le Province eleggono nuovi
+Imperatori in modo del tutto autonomo, creando continue lotte di potere che si
+concludono spesso nel sangue. Gli episodi di tradimento e gli improvvisi cambiamenti
+di schieramento da parte delle forze militari sono all'ordine del giorno.
+L'unità stessa dell'Impero inizia a venire meno e si iniziano a porre le basi per una
+scissione che diventerà effettiva solo molti decenni più tardi.
+Le Province più lontane, sempre meno collegate al potere di Roma, spingono per
+ottenere un'autonomia non solo formale e guardano con crescente interesse ad altri
+imperi la cui forza crescente inizia a mettere in discussione quella romana.
+L'Imperatore di turno si trova così spesso a combattere contro i nemici storici, ma
+anche contro tutti coloro che vorrebbero approfittare della situazione per guadagnare
+favori e prestigio.
+Nelle zone occidentali nasce quello che si autodefinisce il "Regnum Gallicum", alla cui
+testa si pone un certo Postumo, mentre in quelle orientali sale al potere tale
+Macriano, ufficiale dell'esercito di Valeriano postosi alla giuda delle truppe superstiti.
+Entrambe queste manifestazioni di indipendentismo derivano, principalmente, dalla
+sensazione di lontananza del potere centrale e dalla necessità di provvedere con mezzi
+propri alla difesa.Tutto questo mentre l'Imperatore “ufficiale” è Gallieno, che resterà
+in carica fino al 268 d.C.
+Due anni dopo, nel 270, si assisterà ad un tentativo di riorganizzazione dell'Impero ad
+opera di Domizio Aureliano che passerà alla storia come “Restitur Orbis” (colui che
+ha ridato al mondo la sua giusta forma).
+Dopo la sua morte (275), il potere passerà ad altri tre imperatori: M. Claudio Tacito (il
+quale si dichiara imparentato alla lontana con il più celebre scrittore e storico), M.
+Aurelio Probo e M.Aurelio Caro, che si impegnarono fondamentalmente nell'arginare
+il dilagare dei nemici alle frontiere, sia occidentali che orientali.
+Nel 284 d.C., lontano da Roma, viene incoronato Imperatore Diocleziano che riuscirà
+a riportare l'Impero alla stabilità.
+
+
+
+
+                                           14
+(c) 2005 Editrice Giochi spa
+Via Bergamo 12 - 20135 Milano
+Tutti i diritti riservati
+Made in Italy
+
+
+
+www.editricegiochi.it
+www.risiko.it
+                                1
+
