@@ -9,6 +9,7 @@ def P(name: str) -> Dict[str, Any]:
         "name": name,
         "owner": None,
         "legions": 0,
+        "power_center": False,
         "adj_land": [],
         "adj_sea": [],
     }
