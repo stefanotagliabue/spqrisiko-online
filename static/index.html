@@ -96,6 +96,14 @@
     }
     .cardChip.sel { border-color: var(--accent); background: rgba(217,165,63,.18); }
 
+    .die {
+      display: inline-block; font-size: 26px; line-height: 1; margin-right: 2px;
+    }
+    .combatRow { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
+    .combatRow .vs { color: var(--muted); font-size: 11px; }
+    .combatHead { font-size: 13px; margin-bottom: 4px; }
+    .combatHead .win { color: var(--accent); font-weight: 700; }
+    #combatRolls { max-height: 130px; overflow-y: auto; }
     #logBox {
       font-family: ui-monospace, Consolas, monospace; font-size: 11.5px;
       color: var(--muted); max-height: 200px; overflow-y: auto; white-space: pre-wrap;
@@ -177,6 +185,10 @@
         <div id="actions"></div>
       </section>
       <section>
+        <h3>Combattimento</h3>
+        <div id="combatBox"></div>
+      </section>
+      <section>
         <h3>Le tue carte</h3>
         <div id="cardsBox"></div>
       </section>
@@ -195,7 +207,7 @@
 
 <script>
 "use strict";
-const CLIENT_VERSION = "index-v5-map";
+const CLIENT_VERSION = "index-v6-dice";
 
 /* ============ coordinate mappa (centri tile) ============ */
 const PROV_XY = {
@@ -509,6 +521,7 @@ function render() {
   renderMapState(st);
   renderPlayers(st);
   renderActions(st);
+  renderCombat(st);
   renderCards(st);
   renderLog(st);
 
@@ -563,7 +576,7 @@ function renderPlayers(st) {
     if (st.turn.phase === "LOBBY") bits.push(p.ready ? "✅ pronto" : "⬜");
     else {
       bits.push(`⭐${p.score}`);
-      bits.push(`🃏${(p.cards||[]).length}`);
+      bits.push(`🃏${p.cardCount !== undefined ? p.cardCount : (p.cards||[]).length}`);
       if (p.eliminated) bits.push("💀");
     }
     if (p.connected === false) bits.push("📴");
@@ -830,6 +843,43 @@ function renderActions(st) {
   }
 
   add(hint(`Fase: ${ph}`));
+}
+
+const DIE_FACE = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+
+function renderCombat(st) {
+  const box = $("combatBox");
+  box.innerHTML = "";
+  const lc = st.lastCombat;
+  if (!lc) {
+    box.append(el("span", { style:"font-size:13px;color:var(--muted)" }, "Nessun combattimento."));
+    return;
+  }
+  const atkCol = COLOR_HEX[lc.attacker] || "#ccc";
+  const defCol = ownerFill(lc.defender);
+  let where = "";
+  if (lc.kind === "land") where = `${prov(lc.from).name} → ${prov(lc.to).name}`;
+  if (lc.kind === "naval") where = `⛵ ${sea(lc.sea).name}`;
+  if (lc.kind === "sea") where = `${prov(lc.from).name} → ${prov(lc.to).name} via ${sea(lc.sea).name}`;
+
+  const head = el("div", { class:"combatHead" });
+  head.append(el("span", { style:`color:${atkCol};font-weight:700` }, lc.attacker), " vs ",
+    el("span", { style:`color:${defCol};font-weight:700` }, String(lc.defender || "?")),
+    ` · ${where} `);
+  if (lc.conquered) head.append(el("span", { class:"win" }, " CONQUISTA! 🏛️"));
+  box.append(head);
+
+  const rolls = el("div", { id:"combatRolls" });
+  lc.rolls.forEach(r => {
+    const row = el("div", { class:"combatRow" });
+    r.att.forEach(v => row.append(el("span", { class:"die", style:`color:${atkCol}` }, DIE_FACE[v-1] || "?")));
+    row.append(el("span", { class:"vs" }, "vs"));
+    r.def.forEach(v => row.append(el("span", { class:"die", style:`color:${defCol}` }, DIE_FACE[v-1] || "?")));
+    row.append(el("span", { class:"vs" }, `perdite A−${r.attLoss} D−${r.defLoss}`));
+    rolls.append(row);
+  });
+  box.append(rolls);
+  rolls.scrollTop = rolls.scrollHeight;
 }
 
 function renderCards(st) {

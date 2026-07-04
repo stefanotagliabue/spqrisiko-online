@@ -87,6 +87,8 @@ def new_game_state(room: str) -> Dict[str, Any]:
         "map": game_map,
         "log": [],
         "winner": None,
+        # ultimo combattimento risolto (per la UI: dadi e perdite)
+        "lastCombat": None,
     }
 
 async def broadcast_json_async(room: str, payload: Dict[str, Any]) -> None:
@@ -94,6 +96,34 @@ async def broadcast_json_async(room: str, payload: Dict[str, Any]) -> None:
         return
     for peer in list(ROOMS[room]):
         await peer.send_json(payload)
+
+
+def state_view(gs: Dict[str, Any], viewer_id: str) -> Dict[str, Any]:
+    """Vista personalizzata dello stato: le carte degli altri giocatori
+    non vengono inviate (solo il conteggio in cardCount)."""
+    view = dict(gs)
+    view["players"] = []
+    for p in gs["players"]:
+        q = dict(p)
+        q["cardCount"] = len(p.get("cards") or [])
+        if p["id"] != viewer_id:
+            q["cards"] = []
+        view["players"].append(q)
+    return view
+
+
+async def broadcast_state_async(room: str) -> None:
+    gs = GAMES.get(room)
+    if gs is None:
+        return
+    active = ROOMS.get(room, set())
+    for pid, peer in list(PLAYER_WS.get(room, {}).items()):
+        if peer not in active:
+            continue
+        try:
+            await peer.send_json({"type": "state", "room": room, "state": state_view(gs, pid)})
+        except Exception:
+            pass
 
 
 def add_log(room: str, text: str) -> None:
@@ -542,7 +572,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 
     # notify everyone + send state snapshot
     await broadcast_json_async(room, {"type": "join", "room": room, "player": player["name"]})
-    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+    await broadcast_state_async(room)
 
     try:
         while True:
@@ -575,7 +605,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                             p["ready"] = not p["ready"]
                             add_log(room, f"{p['name']} ready={p['ready']}")
                             break
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": GAMES[room]})
+                    await broadcast_state_async(room)
                     continue
 
                 # RESET GAME (keep connected players, reset game state)
@@ -596,7 +626,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         })
 
                     add_log(room, "Game reset -> LOBBY")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": GAMES[room]})
+                    await broadcast_state_async(room)
                     continue
 
                 # START GAME -> SETUP
@@ -642,7 +672,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     gs["turn"]["turnIndex"] = 0
                     gs["setup"]["claimedByPlayers"] = 0
                     add_log(room, "Game started -> SETUP")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # SETUP CLAIM
@@ -718,7 +748,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         gs["turn"]["phase"] = "SCORE"
                         add_log(room, "SETUP complete -> SCORE")
 
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # REINFORCE LAND: BEGIN (from SCORE)
@@ -754,7 +784,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         gs["turn"]["phase"] = "GAME_OVER"
                         gs["winner"] = p["name"]
                         add_log(room, f"GAME OVER: {p['name']} wins with {p['score']} VP")
-                        await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                        await broadcast_state_async(room)
                         continue
 
                     # reset tracking turno
@@ -775,7 +805,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     if pc_bonus:
                         add_log(room, f"{p['name']} +1 legion on each power center: {', '.join(pc_bonus)} (§6.5)")
 
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                                 # REINFORCE LAND: PLACE
@@ -842,7 +872,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         gs["turn"]["phase"] = "REINFORCE_NAVAL"
                         add_log(room, f"{p['name']} placed +{total} legions. Phase -> REINFORCE_NAVAL")
 
-                        await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                        await broadcast_state_async(room)
                         continue
 
                     # se siamo usciti con break, abbiamo già mandato l'error sopra
@@ -948,7 +978,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     if pc_prov:
                         parts.append(f"power center in {pc_prov}")
                     add_log(room, f"{p['name']} TRIS [{', '.join(symbols)}]: {' | '.join(parts)}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # TRIREME -> LEGIONS (§6.6): durante i rinforzi terrestri, una trireme
@@ -991,7 +1021,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     remove_triremes(sea, p["color"], 1)
                     prov["legions"] += 2
                     add_log(room, f"{p['name']} trireme in {sea_id} -> +2 legions in {prov_id}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # BUY TRIREME (§7.1-7.3): 3 legioni da una provincia costiera -> 1 trireme
@@ -1035,7 +1065,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     sea.setdefault("triremes", {})
                     sea["triremes"][p["color"]] = sea["triremes"].get(p["color"], 0) + 1
                     add_log(room, f"{p['name']} -3 legions in {prov_id} -> +1 trireme in {sea_id}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # END PHASE: avanza fra le fasi navali (tutte facoltative)
@@ -1059,7 +1089,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 
                     gs["turn"]["phase"] = NEXT_PHASE[current]
                     add_log(room, f"Phase -> {gs['turn']['phase']}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # NAVAL MOVE (§9.3-9.4): un solo movimento di triremi fra mari adiacenti
@@ -1109,7 +1139,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 
                     # §9.4: un solo movimento per turno -> avanti
                     gs["turn"]["phase"] = "NAVAL_COMBAT"
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # NAVAL ATTACK (§11): combattimento fra triremi nella stessa area di mare
@@ -1183,7 +1213,22 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     gs["turn"]["navalCombats"][sea_id] = {"target": target, "closed": closed}
 
                     add_log(room, f"NAVAL {p['name']} vs {target} in {sea_id} A{att_roll} D{def_roll} | losses A-{a_loss} D-{d_loss}{' | combat closed' if closed else ''}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+
+                    gs["lastCombat"] = {
+                        "kind": "naval",
+                        "attacker": p["color"],
+                        "defender": target,
+                        "sea": sea_id,
+                        "rolls": [{
+                            "att": sorted(att_roll, reverse=True),
+                            "def": sorted(def_roll, reverse=True),
+                            "attLoss": a_loss,
+                            "defLoss": d_loss,
+                        }],
+                        "conquered": False,
+                        "t": now_ms(),
+                    }
+                    await broadcast_state_async(room)
                     continue
 
                 # SEA ATTACK (§12): attacco fra province adiacenti allo stesso mare,
@@ -1269,6 +1314,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     prov_from["legions"] -= legions
                     att_force = legions
                     rolls = 0
+                    roll_history = []
                     add_log(room, f"SEA ATTACK {p['name']} {from_id}->{to_id} via {sea_id} with {att_force} vs {def_legions}")
 
                     while att_force > 0 and def_legions > 0 and rolls < 1000:
@@ -1280,9 +1326,26 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         att_force -= a_loss
                         def_legions -= d_loss
                         rolls += 1
+                        roll_history.append({
+                            "att": sorted(att_roll, reverse=True),
+                            "def": sorted(def_roll, reverse=True),
+                            "attLoss": a_loss,
+                            "defLoss": d_loss,
+                        })
                         add_log(room, f"  roll A{att_roll} D{def_roll} | losses A-{a_loss} D-{d_loss} -> {max(att_force,0)} vs {max(def_legions,0)}")
 
                     gs["turn"]["seaAttackedProvinces"].append(to_id)
+                    gs["lastCombat"] = {
+                        "kind": "sea",
+                        "attacker": p["color"],
+                        "defender": defender_color,
+                        "from": from_id,
+                        "to": to_id,
+                        "sea": sea_id,
+                        "rolls": roll_history,
+                        "conquered": False,
+                        "t": now_ms(),
+                    }
 
                     if def_legions <= 0 and att_force > 0:
                         prev_owner = prov_to.get("owner")
@@ -1290,6 +1353,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         prov_to["legions"] = att_force
                         gs["turn"]["conqueredThisTurn"] = True
                         gs["turn"]["seaConqueredProvinces"].append(to_id)
+                        gs["lastCombat"]["conquered"] = True
                         add_log(room, f"CONQUERED {to_id} by sea ({att_force} legions landed)")
 
                         if prev_owner and not str(prev_owner).startswith("NEUTRAL_"):
@@ -1298,7 +1362,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         prov_to["legions"] = max(1, def_legions)
                         add_log(room, f"SEA ATTACK failed: attacking force destroyed, {to_id} holds")
 
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # LAND ATTACKS: one roll per command (server-side dice)
@@ -1394,6 +1458,22 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 
                     add_log(room, f"LAND ATTACK {p['name']} {from_id}->{to_id} A{sorted(att_roll, reverse=True)} D{sorted(def_roll, reverse=True)} | losses A-{a_loss} D-{d_loss}")
 
+                    gs["lastCombat"] = {
+                        "kind": "land",
+                        "attacker": p["color"],
+                        "defender": prov_to.get("owner"),
+                        "from": from_id,
+                        "to": to_id,
+                        "rolls": [{
+                            "att": sorted(att_roll, reverse=True),
+                            "def": sorted(def_roll, reverse=True),
+                            "attLoss": a_loss,
+                            "defLoss": d_loss,
+                        }],
+                        "conquered": False,
+                        "t": now_ms(),
+                    }
+
                     # conquest check
                     if prov_to["legions"] <= 0:
                         prev_owner = prov_to.get("owner")
@@ -1411,6 +1491,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         prov_from["legions"] = prov_from["legions"] - move_min
 
                         gs["turn"]["conqueredThisTurn"] = True
+                        gs["lastCombat"]["conquered"] = True
                         # §13.4: finché non fa altro, può spostare legioni extra
                         gs["pending"]["occupation"] = {"from": from_id, "to": to_id}
                         add_log(room, f"CONQUERED {to_id} by {p['name']} (moved {move_min})")
@@ -1419,7 +1500,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         if prev_owner and not str(prev_owner).startswith("NEUTRAL_"):
                             check_elimination(room, prev_owner, p)
 
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
 
@@ -1463,7 +1544,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     gs["pending"]["occupation"] = None
 
                     add_log(room, f"{p['name']} moved +{count} into {occ['to']}")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # END ATTACKS: chiude la fase di attacchi terrestri
@@ -1482,7 +1563,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     gs["turn"]["phase"] = "STRATEGIC_MOVE"
                     p = get_player_by_id(gs, player_id)
                     add_log(room, f"{p['name']} ends attacks -> STRATEGIC_MOVE")
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # STRATEGIC MOVE (§15): singolo spostamento fra province proprie adiacenti,
@@ -1551,7 +1632,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 
                     # §15.6: lo spostamento strategico chiude il turno
                     finish_turn(room)
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # END TURN: chiude il turno senza (o dopo) lo spostamento strategico
@@ -1569,7 +1650,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     p = get_player_by_id(gs, player_id)
                     add_log(room, f"{p['name']} ends turn")
                     finish_turn(room)
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 # DEBUG: advance phase (manual)
@@ -1581,7 +1662,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     if current not in PHASES:
                         turn["phase"] = "LOBBY"
                         add_log(room, f"Phase was invalid -> reset to LOBBY")
-                        await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                        await broadcast_state_async(room)
                         continue
 
                     idx = PHASES.index(current)
@@ -1596,7 +1677,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         turn["phase"] = PHASES[idx + 1]
                         add_log(room, f"Phase -> {turn['phase']}")
 
-                    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+                    await broadcast_state_async(room)
                     continue
 
                 await ws.send_json({"type": "error", "error": f"Unknown cmd: {cmd}"})
@@ -1604,7 +1685,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
             except Exception as e:
                 add_log(room, f"SERVER EXCEPTION: {type(e).__name__}: {e}")
                 await ws.send_json({"type": "error", "error": f"Server exception: {type(e).__name__}: {e}"})
-                await broadcast_json_async(room, {"type": "state", "room": room, "state": GAMES[room]})
+                await broadcast_state_async(room)
                 continue
 
     except WebSocketDisconnect:
@@ -1635,7 +1716,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
             add_log(room, f"{pname} disconnected (can rejoin)")
 
         await broadcast_json_async(room, {"type": "leave", "room": room, "player": pname})
-        await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+        await broadcast_state_async(room)
 
         # la room muore solo se vuota E senza una partita in corso
         if len(ROOMS.get(room, set())) == 0 and gs["turn"]["phase"] in ("LOBBY", "GAME_OVER"):
