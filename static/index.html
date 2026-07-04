@@ -1,434 +1,891 @@
 <!doctype html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SPQRisiKo MVP</title>
-    <style>
-      body { font-family: system-ui, sans-serif; padding: 12px; }
-      input, button { font-size: 16px; padding: 10px; }
-      #log {
-        white-space: pre-wrap;
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin-top: 10px;
-        height: 55vh;
-        overflow: auto;
-        border-radius: 10px;
-        background: #fafafa;
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPQRisiKo</title>
+  <style>
+    :root {
+      --bg: #101722;
+      --panel: #1a2434;
+      --panel2: #223049;
+      --line: #33445f;
+      --text: #e8edf5;
+      --muted: #93a3ba;
+      --accent: #d9a53f;
+      --sea: #16283e;
+      --free: #3a4a5e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+    header h1 { font-size: 18px; margin: 0; color: var(--accent); letter-spacing: 1px; }
+    .chip {
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 20px;
+      padding: 3px 12px; font-size: 13px; white-space: nowrap;
+    }
+    .chip b { color: var(--accent); }
+    #connDot { width: 10px; height: 10px; border-radius: 50%; background: #c0392b; }
+    #connDot.on { background: #2ecc71; }
+    header .spacer { flex: 1; }
+    header button { font-size: 12px; padding: 4px 10px; }
+
+    /* schermata di ingresso */
+    #joinScreen {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+    }
+    #joinBox {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 28px; width: 340px; display: flex; flex-direction: column; gap: 10px;
+    }
+    #joinBox h2 { margin: 0 0 6px; color: var(--accent); }
+    input, select {
+      font-size: 15px; padding: 9px 10px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+    }
+    button {
+      font-size: 14px; padding: 9px 12px; border-radius: 8px; cursor: pointer;
+      border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #1c1607; font-weight: 600; border: none; }
+    button.danger { border-color: #a33; color: #f2b3b3; }
+    button:disabled { opacity: .45; cursor: default; }
+
+    /* layout partita */
+    #gameScreen { flex: 1; display: none; min-height: 0; }
+    #gameScreen.on { display: flex; }
+    #mapWrap { flex: 1; min-width: 0; padding: 6px; }
+    #map { width: 100%; height: 100%; display: block; }
+    aside {
+      width: 340px; flex: 0 0 340px; background: var(--panel);
+      border-left: 1px solid var(--line); display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    aside section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    aside h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+    .pRow { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; }
+    .pRow .dot { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
+    .pRow.turn { background: rgba(217,165,63,.12); border-radius: 6px; }
+    .pRow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pRow .inf { color: var(--muted); font-size: 12px; }
+
+    #actions .hint { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
+    #actions .row { display: flex; gap: 6px; margin: 6px 0; flex-wrap: wrap; }
+    #actions .row > button { flex: 1; }
+    #actions .selInfo {
+      background: var(--panel2); border-radius: 8px; padding: 6px 10px;
+      font-size: 13px; margin: 4px 0;
+    }
+    #actions input, #actions select { font-size: 13px; padding: 6px 8px; }
+    #actions label { font-size: 12px; color: var(--muted); }
+
+    .cardChip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+      padding: 5px 9px; margin: 2px; font-size: 13px; cursor: pointer; user-select: none;
+    }
+    .cardChip.sel { border-color: var(--accent); background: rgba(217,165,63,.18); }
+
+    #logBox {
+      font-family: ui-monospace, Consolas, monospace; font-size: 11.5px;
+      color: var(--muted); max-height: 200px; overflow-y: auto; white-space: pre-wrap;
+    }
+    #logBox .me { color: var(--text); }
+
+    #toast {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: #7a2c2c; color: #ffe3e3; border-radius: 10px; padding: 10px 18px;
+      font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 50;
+      max-width: 70vw;
+    }
+    #toast.on { opacity: 1; }
+    #banner {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(10,14,20,.82); z-index: 40; flex-direction: column; gap: 16px;
+    }
+    #banner.on { display: flex; }
+    #banner .big { font-size: 42px; color: var(--accent); font-weight: 700; }
+
+    /* SVG */
+    .prov rect {
+      rx: 8; stroke: #0b111a; stroke-width: 1.2; cursor: pointer;
+      transition: stroke .12s;
+    }
+    .prov text { pointer-events: none; }
+    .prov .nm { font-size: 9.5px; fill: #f2f5fa; }
+    .prov .lg { font-size: 13px; font-weight: 700; fill: #fff; }
+    .prov.clickable rect { stroke: #cfd8e6; stroke-width: 1.4; }
+    .prov.clickable:hover rect { stroke: #fff; stroke-width: 2.2; }
+    .prov.selA rect { stroke: var(--accent); stroke-width: 3; }
+    .prov.selB rect { stroke: #7fd4ff; stroke-width: 3; }
+    .prov.neutralOwner rect { stroke-dasharray: 4 2; }
+    .sea ellipse { fill: rgba(80,140,210,.16); stroke: #3d5f8a; stroke-width: 1.2; cursor: pointer; }
+    .sea text { pointer-events: none; }
+    .sea .nm { font-size: 9px; fill: #7fa8d4; font-style: italic; }
+    .sea.clickable ellipse { stroke: #9fc5ef; stroke-width: 1.8; }
+    .sea.clickable:hover ellipse { stroke: #fff; }
+    .sea.selA ellipse { stroke: var(--accent); stroke-width: 3; }
+    .sea.selB ellipse { stroke: #7fd4ff; stroke-width: 3; }
+    .edge { stroke: #2c3c55; stroke-width: 1.1; }
+    .pcStar { font-size: 13px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SPQRisiKo</h1>
+    <div id="connDot"></div>
+    <span class="chip" id="roomChip">—</span>
+    <span class="chip" id="phaseChip">—</span>
+    <span class="chip" id="turnChip">—</span>
+    <div class="spacer"></div>
+    <button id="btnDebug" title="Client testuale di debug">debug</button>
+    <button id="btnReset" class="danger">Reset partita</button>
+  </header>
+
+  <div id="joinScreen">
+    <div id="joinBox">
+      <h2>Entra in partita</h2>
+      <input id="name" placeholder="Il tuo nome" maxlength="20" />
+      <input id="room" placeholder="Codice stanza" maxlength="8" style="text-transform:uppercase" />
+      <button id="btnCreate">Crea nuova stanza</button>
+      <button id="btnConnect" class="primary">Connetti</button>
+      <div id="joinMsg" style="font-size:13px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <div id="gameScreen">
+    <div id="mapWrap">
+      <svg id="map" viewBox="0 0 1240 700" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <aside>
+      <section>
+        <h3>Giocatori</h3>
+        <div id="playersBox"></div>
+      </section>
+      <section>
+        <h3>Azioni</h3>
+        <div id="actions"></div>
+      </section>
+      <section>
+        <h3>Le tue carte</h3>
+        <div id="cardsBox"></div>
+      </section>
+      <section>
+        <h3>Log</h3>
+        <div id="logBox"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div id="toast"></div>
+  <div id="banner">
+    <div class="big" id="bannerText"></div>
+    <button class="primary" id="bannerReset">Nuova partita</button>
+  </div>
+
+<script>
+"use strict";
+const CLIENT_VERSION = "index-v5-map";
+
+/* ============ coordinate mappa (centri tile) ============ */
+const PROV_XY = {
+  BRITANNIA:[250,70], GERMANIA_INFERIOR:[460,105], BELGICA:[355,150],
+  LUGDUNENSE:[300,225], RAETIA:[475,190], NORICUM:[570,195], PANNONIA:[668,200],
+  DACIA:[800,185], MOESIA:[792,262], AQUITANIA:[250,300], NARBONENSIS:[335,332],
+  CISALPINA:[470,272], ILLIRIA:[592,288], DALMAZIA:[668,300], THRACIA:[840,308],
+  GALICIA:[92,298], TERRACONENSIS:[188,372], LUSITANIA:[72,390], BAETICA:[140,462],
+  ITALIA:[540,372], CORSICA:[462,332], SARDINIA:[440,462], SICILIA:[550,515],
+  BALEARES:[282,442], EPIRUS:[652,378], MACEDONIA:[748,362], ACHAIA:[710,448],
+  CRETA:[778,548], ASIA:[888,400], BITHYNIA:[935,335], PONTO:[1032,305],
+  GALATIA:[972,368], CAPPADOCIA:[1066,380], CILICIA:[1002,448], CIPRO:[952,528],
+  SYRIA:[1098,458], JUDEA:[1088,548], ARABIA:[1178,548], ARMENIA:[1140,325],
+  MESOPOTAMIA:[1172,395], MAURETANIA:[150,558], NUMIDIA:[292,568], AFRICA:[432,582],
+  CYRENAICA:[648,628], AEGYPTUS:[925,638],
+};
+const SEA_XY = {
+  BRITANNICUS:[340,90], CANTABRICUM:[165,235], IBERICUM:[48,500],
+  BALEARICUM:[215,505], SINUS_GALLICUS:[368,395], TYRRENUM:[512,428],
+  HADRIATICUM:[618,332], IONIUM:[655,495], AEGEUM:[800,445], CRETICUM:[895,585],
+  PONTUS_EUXINUS:[935,248], SYRTIS:[512,632],
+};
+const TILE_W = 86, TILE_H = 40, SEA_RX = 46, SEA_RY = 22;
+
+const COLOR_HEX = {
+  RED:"#c0483e", BLUE:"#3f6fbf", YELLOW:"#c29a2e", GREEN:"#3f9159", BLACK:"#565664",
+};
+const CARD_ICON = { LEGIONARIO:"🗡️", TRIREME:"⛵", VESSILLO:"🚩", ARENA:"🏛️" };
+
+/* ============ stato client ============ */
+let ws = null, myPlayerId = null, lastState = null;
+let autoReconnect = false, reconnectTimer = null;
+let mapBuilt = false;
+
+/* selezioni / input dell'azione in corso; azzerate al cambio fase/turno */
+let ui = { key:"", mode:null, sel:{}, placements:{}, tris:[], vals:{} };
+
+const SESSION_KEY = "spq_session";
+const loadSession = () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY)||"null"); } catch { return null; } };
+const saveSession = s => localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+
+const $ = id => document.getElementById(id);
+const el = (tag, attrs={}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === "onclick") e.onclick = v;
+    else if (k === "oninput") e.oninput = v;
+    else if (k === "style") e.style.cssText = v;
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) e.append(k);
+  return e;
+};
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("on"), 4000);
+}
+
+/* ============ connessione ============ */
+function genRoom() {
+  const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = "";
+  for (let i=0;i<6;i++) s += c[Math.floor(Math.random()*c.length)];
+  return s;
+}
+
+function connect() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  const name = ($("name").value.trim() || "anon");
+  const room = ($("room").value.trim().toUpperCase() || "LOBBY");
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  let url = `${proto}://${location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(name)}`;
+  const s = loadSession();
+  if (s && s.room === room && s.playerId && s.token)
+    url += `?playerId=${encodeURIComponent(s.playerId)}&token=${encodeURIComponent(s.token)}`;
+
+  ws = new WebSocket(url);
+  ws.onopen = () => { $("connDot").classList.add("on"); };
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "welcome") {
+      myPlayerId = msg.playerId;
+      autoReconnect = true;
+      saveSession({ room: msg.room, name, playerId: msg.playerId, token: msg.token });
+      $("roomChip").innerHTML = `stanza <b>${msg.room}</b>`;
+      $("joinScreen").style.display = "none";
+      $("gameScreen").classList.add("on");
+      return;
+    }
+    if (msg.type === "state") { lastState = msg.state; render(); }
+    if (msg.type === "error") {
+      toast(msg.error);
+      if (String(msg.error).includes("cannot join")) {
+        autoReconnect = false;
+        $("joinMsg").textContent = "❌ " + msg.error;
       }
-      .row { display: flex; gap: 8px; margin: 8px 0; }
-      .row > * { flex: 1; }
-      .small { font-size: 13px; opacity: 0.8; }
-      h3 { margin-bottom: 8px; }
-    </style>
-  </head>
+    }
+  };
+  ws.onclose = ev => {
+    $("connDot").classList.remove("on");
+    if (ev.code === 4002) { autoReconnect = false; toast("Sessione aperta in un'altra scheda"); return; }
+    if (autoReconnect) reconnectTimer = setTimeout(connect, 2000);
+  };
+}
 
-  <body>
-    <h3>SPQRisiKo MVP — Setup & GameState</h3>
+function sendCmd(cmd, payload={}) {
+  if (!ws || ws.readyState !== 1) return toast("Non connesso");
+  ws.send(JSON.stringify({ type:"cmd", cmd, playerId: myPlayerId, payload }));
+}
 
-    <!-- Connessione -->
-    <div class="row">
-      <input id="name" placeholder="Nome (es. Marco)" />
-      <input id="room" placeholder="Stanza (es. ABCD12)" />
-    </div>
+/* ============ costruzione mappa SVG ============ */
+function svgEl(tag, attrs={}) {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+}
 
-    <div class="row">
-      <button id="create">Crea stanza</button>
-      <button id="connect">Connetti</button>
-    </div>
+function buildMap(m) {
+  const svg = $("map");
+  svg.innerHTML = "";
+  const gEdges = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g");
+  svg.append(gEdges, gSeas, gProv);
 
-    <!-- Lobby -->
-    <div class="row">
-      <button id="ready">Ready</button>
-      <button id="start">Start Game</button>
-      <button id="reset">Reset Game</button>
-    </div>
+  // adiacenze terrestri (linee sotto i tile)
+  const seen = new Set();
+  for (const [id, pr] of Object.entries(m.provinces)) {
+    for (const other of pr.adj_land) {
+      const key = [id, other].sort().join("|");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const [x1,y1] = PROV_XY[id] || [0,0], [x2,y2] = PROV_XY[other] || [0,0];
+      gEdges.append(svgEl("line", { class:"edge", x1, y1, x2, y2 }));
+    }
+  }
 
-    <!-- SETUP -->
-    <div class="row">
-      <input id="prov" list="provListFree" placeholder="Tua provincia" />
-      <input id="nprov" list="provListFree" placeholder="Provincia neutrale (se richiesta)" />
-    </div>
+  for (const [id, sea] of Object.entries(m.seas)) {
+    const [cx,cy] = SEA_XY[id] || [0,0];
+    const g = svgEl("g", { class:"sea", id:`sea_${id}` });
+    g.append(svgEl("ellipse", { cx, cy, rx:SEA_RX, ry:SEA_RY }));
+    const nm = svgEl("text", { class:"nm", x:cx, y:cy-6, "text-anchor":"middle" });
+    nm.textContent = sea.name;
+    g.append(nm);
+    const tr = svgEl("text", { class:"tri", x:cx, y:cy+9, "text-anchor":"middle", "font-size":"10" });
+    g.append(tr);
+    g.addEventListener("click", () => onSeaClick(id));
+    gSeas.append(g);
+  }
 
-    <datalist id="provListFree"></datalist>
-    <datalist id="provListAll"></datalist>
-    <datalist id="seaList"></datalist>
+  for (const [id, pr] of Object.entries(m.provinces)) {
+    const [cx,cy] = PROV_XY[id] || [0,0];
+    const g = svgEl("g", { class:"prov", id:`prov_${id}` });
+    g.append(svgEl("rect", { x:cx-TILE_W/2, y:cy-TILE_H/2, width:TILE_W, height:TILE_H, rx:8 }));
+    const nm = svgEl("text", { class:"nm", x:cx, y:cy-6, "text-anchor":"middle" });
+    nm.textContent = pr.name;
+    g.append(nm);
+    const lg = svgEl("text", { class:"lg", x:cx, y:cy+11, "text-anchor":"middle" });
+    g.append(lg);
+    const pc = svgEl("text", { class:"pcStar", x:cx+TILE_W/2-12, y:cy-TILE_H/2+13 });
+    g.append(pc);
+    g.addEventListener("click", () => onProvClick(id));
+    gProv.append(g);
+  }
+  mapBuilt = true;
+}
 
-    <div class="row">
-      <button id="claim">Claim (SETUP)</button>
-    </div>
+/* ============ helper di gioco ============ */
+const me = () => lastState && lastState.players.find(p => p.id === myPlayerId);
+const myColor = () => (me() || {}).color;
+const turnPlayer = () => lastState.players[lastState.turn.turnIndex];
+const isMyTurn = () => turnPlayer() && turnPlayer().id === myPlayerId;
+const prov = id => lastState.map.provinces[id];
+const sea = id => lastState.map.seas[id];
+const isMine = id => prov(id).owner === myColor();
+const isEnemy = id => prov(id).owner !== null && prov(id).owner !== myColor();
+const isFree = id => prov(id).owner === null;
+const placedTotal = () => Object.values(ui.placements).reduce((a,b)=>a+b,0);
+const myTriremes = sid => (sea(sid).triremes || {})[myColor()] || 0;
 
-    <div class="row">
-      <button id="reinforceBegin">Reinforce Begin (SCORE)</button>
-    </div>
+function ownerFill(owner) {
+  if (owner === null) return "var(--free)";
+  if (owner.startsWith("NEUTRAL_")) {
+    return COLOR_HEX[owner.slice(8)] || "#777";
+  }
+  return COLOR_HEX[owner] || "#777";
+}
 
-    <!-- TRIS -->
-    <div class="row">
-      <input id="trisCards" placeholder="Indici carte (es. 0,1,2)" />
-      <input id="trisSeas" list="seaList" placeholder="Mari triremi (opz., es. TYRRENUM)" />
-      <input id="trisPc" list="provListAll" placeholder="Provincia centro potere (opz.)" />
-      <button id="trisGo">Gioca Tris</button>
-    </div>
+function resetUiIfNeeded(st) {
+  const key = `${st.turn.round}|${st.turn.turnIndex}|${st.turn.phase}`;
+  if (ui.key !== key) ui = { key, mode:null, sel:{}, placements:{}, tris:[], vals:{} };
+}
 
-    <div class="row">
-      <input id="placements" placeholder='Placements es: ITALIA:2,CISALPINA:1' />
-    </div>
-    <div class="row">
-      <button id="reinforcePlace">Place Reinforcements</button>
-    </div>
+/* province/mare cliccabili nella fase corrente (per l'evidenziazione) */
+function computeClickables() {
+  const st = lastState, ph = st.turn.phase;
+  const provs = new Set(), seas = new Set();
+  if (!isMyTurn()) return { provs, seas };
+  const all = Object.keys(st.map.provinces);
 
-    <!-- LAND ATTACKS -->
-    <div class="row">
-      <input id="atkFrom" list="provListAll" placeholder="Attack from (provincia tua)" />
-      <input id="atkTo" list="provListAll" placeholder="Attack to (provincia nemica)" />
-    </div>
-    <div class="row">
-      <input id="atkDice" placeholder="Dadi attacco (1-3)" value="3" />
-      <button id="atkRoll">Land Attack (roll)</button>
-    </div>
+  if (ph === "SETUP") {
+    all.filter(isFree).forEach(id => provs.add(id));
+  } else if (ph === "REINFORCE_LAND") {
+    all.filter(isMine).forEach(id => provs.add(id));
+  } else if (ph === "REINFORCE_NAVAL") {
+    if (ui.mode === "buy") {
+      if (!ui.sel.prov) all.filter(id => isMine(id) && prov(id).legions >= 4 && prov(id).adj_sea.length).forEach(id => provs.add(id));
+      else prov(ui.sel.prov).adj_sea.forEach(id => seas.add(id));
+    } else if (ui.mode === "t2l") {
+      if (!ui.sel.sea) Object.keys(st.map.seas).filter(id => myTriremes(id) > 0).forEach(id => seas.add(id));
+      else sea(ui.sel.sea).adj_land.filter(isMine).forEach(id => provs.add(id));
+    }
+  } else if (ph === "NAVAL_MOVE") {
+    if (!ui.sel.fromSea) Object.keys(st.map.seas).filter(id => myTriremes(id) > 0).forEach(id => seas.add(id));
+    else sea(ui.sel.fromSea).adj_sea.forEach(id => seas.add(id));
+  } else if (ph === "NAVAL_COMBAT") {
+    Object.keys(st.map.seas).filter(id => {
+      const t = sea(id).triremes || {};
+      return myTriremes(id) > 0 && Object.entries(t).some(([c,n]) => c !== myColor() && n > 0);
+    }).forEach(id => seas.add(id));
+  } else if (ph === "SEA_ATTACKS") {
+    if (!ui.sel.from) all.filter(id => isMine(id) && prov(id).adj_sea.length && prov(id).legions > 1).forEach(id => provs.add(id));
+    else {
+      const fromSeas = new Set(prov(ui.sel.from).adj_sea);
+      all.filter(id => isEnemy(id) && prov(id).adj_sea.some(s => fromSeas.has(s))).forEach(id => provs.add(id));
+    }
+  } else if (ph === "LAND_ATTACKS") {
+    if (!st.pending.occupation) {
+      all.filter(id => isMine(id) && prov(id).legions > 1).forEach(id => provs.add(id));
+      if (ui.sel.from) prov(ui.sel.from).adj_land.filter(isEnemy).forEach(id => provs.add(id));
+    }
+  } else if (ph === "STRATEGIC_MOVE") {
+    if (!ui.sel.from) all.filter(id => isMine(id) && prov(id).legions > 1).forEach(id => provs.add(id));
+    else all.filter(id => isMine(id) && id !== ui.sel.from).forEach(id => provs.add(id));
+  }
+  return { provs, seas };
+}
 
-    <!-- NAVALE -->
-    <div class="row">
-      <input id="t2lSea" list="seaList" placeholder="Mare (trireme da convertire)" />
-      <input id="t2lProv" list="provListAll" placeholder="Provincia (+2 legioni)" />
-      <button id="t2lGo">Trireme → Legioni</button>
-    </div>
+/* ============ click sulla mappa ============ */
+function onProvClick(id) {
+  if (!lastState || !isMyTurn()) return;
+  const ph = lastState.turn.phase;
 
-    <div class="row">
-      <input id="btProv" list="provListAll" placeholder="Provincia (-3 legioni)" />
-      <input id="btSea" list="seaList" placeholder="Mare (+1 trireme)" />
-      <button id="btGo">Compra Trireme</button>
-    </div>
+  if (ph === "SETUP" && isFree(id)) {
+    const needNeutral = lastState.setup.neutralPool.length > 0;
+    if (!ui.sel.claim) ui.sel.claim = id;
+    else if (needNeutral && !ui.sel.neutral && id !== ui.sel.claim) ui.sel.neutral = id;
+    else ui.sel.claim = id, ui.sel.neutral = null;
+  }
+  else if (ph === "REINFORCE_LAND" && isMine(id)) {
+    const remaining = lastState.pending.landReinforceRemaining - placedTotal();
+    if (remaining > 0) ui.placements[id] = (ui.placements[id] || 0) + 1;
+  }
+  else if (ph === "REINFORCE_NAVAL") {
+    if (ui.mode === "buy" && isMine(id)) { ui.sel.prov = id; ui.sel.sea = null; }
+    if (ui.mode === "t2l" && ui.sel.sea && isMine(id) && sea(ui.sel.sea).adj_land.includes(id)) {
+      sendCmd("trireme_to_legions", { seaId: ui.sel.sea, provinceId: id });
+      ui.mode = null; ui.sel = {};
+    }
+  }
+  else if (ph === "SEA_ATTACKS") {
+    if (isMine(id)) { ui.sel.from = id; ui.sel.to = null; }
+    else if (isEnemy(id) && ui.sel.from) ui.sel.to = id;
+  }
+  else if (ph === "LAND_ATTACKS" && !lastState.pending.occupation) {
+    if (isMine(id)) { ui.sel.from = id; ui.sel.to = null; }
+    else if (isEnemy(id) && ui.sel.from && prov(ui.sel.from).adj_land.includes(id)) ui.sel.to = id;
+  }
+  else if (ph === "STRATEGIC_MOVE" && isMine(id)) {
+    if (!ui.sel.from || id === ui.sel.from) { ui.sel.from = id; ui.sel.to = null; }
+    else ui.sel.to = id;
+  }
+  render();
+}
 
-    <div class="row">
-      <input id="nmFrom" list="seaList" placeholder="Mare da" />
-      <input id="nmTo" list="seaList" placeholder="Mare a" />
-      <input id="nmCount" placeholder="Quante triremi" />
-      <button id="nmGo">Movimento Navale</button>
-    </div>
+function onSeaClick(id) {
+  if (!lastState || !isMyTurn()) return;
+  const ph = lastState.turn.phase;
 
-    <div class="row">
-      <input id="ncSea" list="seaList" placeholder="Mare" />
-      <input id="ncTarget" placeholder="Colore bersaglio (es. BLUE)" />
-      <input id="ncDice" placeholder="Dadi (1-3)" value="3" />
-      <button id="ncGo">Attacco Navale (roll)</button>
-    </div>
+  if (ph === "REINFORCE_NAVAL") {
+    if (ui.mode === "buy" && ui.sel.prov && prov(ui.sel.prov).adj_sea.includes(id)) {
+      sendCmd("buy_trireme", { provinceId: ui.sel.prov, seaId: id });
+      ui.mode = null; ui.sel = {};
+    }
+    if (ui.mode === "t2l" && myTriremes(id) > 0) { ui.sel.sea = id; }
+  }
+  else if (ph === "NAVAL_MOVE") {
+    if (!ui.sel.fromSea && myTriremes(id) > 0) ui.sel.fromSea = id;
+    else if (ui.sel.fromSea && id !== ui.sel.fromSea) ui.sel.toSea = id;
+    else if (id === ui.sel.fromSea) { ui.sel.fromSea = null; ui.sel.toSea = null; }
+  }
+  else if (ph === "NAVAL_COMBAT") {
+    ui.sel.sea = id; ui.sel.target = null;
+  }
+  render();
+}
 
-    <div class="row">
-      <input id="saFrom" list="provListAll" placeholder="Da (tua provincia)" />
-      <input id="saTo" list="provListAll" placeholder="A (provincia nemica)" />
-      <input id="saSea" list="seaList" placeholder="Mare ponte" />
-      <input id="saLegions" placeholder="Legioni" />
-      <button id="saGo">Attacco Via Mare</button>
-    </div>
+/* ============ rendering ============ */
+function render() {
+  const st = lastState;
+  if (!st) return;
+  resetUiIfNeeded(st);
+  if (!mapBuilt) buildMap(st.map);
 
-    <div class="row">
-      <button id="endPhase">Fine Fase (navale)</button>
-    </div>
+  // header
+  $("phaseChip").innerHTML = `round <b>${st.turn.round}</b> · <b>${st.turn.phase}</b>`;
+  const tp = turnPlayer();
+  $("turnChip").innerHTML = st.turn.phase === "LOBBY" ? "in attesa di giocatori"
+    : (tp ? (tp.id === myPlayerId ? "⭐ tocca a te" : `turno di <b>${tp.name}</b>`) : "—");
 
-    <div class="row">
-      <input id="occCount" placeholder="Legioni extra da spostare" />
-      <button id="occExtra">Occupy Extra (post-conquista)</button>
-    </div>
+  renderMapState(st);
+  renderPlayers(st);
+  renderActions(st);
+  renderCards(st);
+  renderLog(st);
 
-    <div class="row">
-      <button id="endAttacks">Fine Attacchi</button>
-      <button id="endTurn">Fine Turno</button>
-    </div>
+  // vittoria
+  if (st.winner) {
+    $("bannerText").textContent = `🏆 ${st.winner} vince!`;
+    $("banner").classList.add("on");
+  } else {
+    $("banner").classList.remove("on");
+  }
+}
 
-    <!-- STRATEGIC MOVE -->
-    <div class="row">
-      <input id="smFrom" list="provListAll" placeholder="Spostamento da" />
-      <input id="smTo" list="provListAll" placeholder="Spostamento a" />
-      <input id="smCount" placeholder="Quante" />
-      <button id="smGo">Strategic Move</button>
-    </div>
+function renderMapState(st) {
+  const { provs: clkP, seas: clkS } = computeClickables();
+  for (const [id, pr] of Object.entries(st.map.provinces)) {
+    const g = $(`prov_${id}`);
+    if (!g) continue;
+    g.querySelector("rect").setAttribute("fill", ownerFill(pr.owner));
+    const extra = ui.placements[id] ? `+${ui.placements[id]}` : "";
+    g.querySelector(".lg").textContent = pr.legions > 0 ? `${pr.legions}${extra}` : (extra || "");
+    g.querySelector(".pcStar").textContent = pr.power_center ? "★" : "";
+    g.classList.toggle("neutralOwner", !!pr.owner && pr.owner.startsWith("NEUTRAL_"));
+    g.classList.toggle("clickable", clkP.has(id));
+    g.classList.toggle("selA", [ui.sel.claim, ui.sel.from, ui.sel.prov].includes(id));
+    g.classList.toggle("selB", [ui.sel.neutral, ui.sel.to].includes(id));
+  }
+  for (const [id, s] of Object.entries(st.map.seas)) {
+    const g = $(`sea_${id}`);
+    if (!g) continue;
+    const t = s.triremes || {};
+    const parts = Object.entries(t).filter(([,n]) => n > 0).map(([c,n]) => `${n}⛵`);
+    const txt = g.querySelector(".tri");
+    txt.textContent = parts.join(" ");
+    // colora il testo del primo colore presente (semplice ma leggibile)
+    const firstColor = Object.keys(t).find(c => t[c] > 0);
+    txt.setAttribute("fill", firstColor ? (COLOR_HEX[firstColor] || "#cde") : "#cde");
+    g.classList.toggle("clickable", clkS.has(id));
+    g.classList.toggle("selA", [ui.sel.sea, ui.sel.fromSea].includes(id));
+    g.classList.toggle("selB", [ui.sel.toSea].includes(id));
+  }
+}
 
-    <!-- Debug -->
-    <div class="row">
-      <button id="advance">Avanza fase (debug)</button>
-      <button id="clear">Pulisci log</button>
-    </div>
+function renderPlayers(st) {
+  const box = $("playersBox");
+  box.innerHTML = "";
+  st.players.forEach((p, i) => {
+    const row = el("div", { class: "pRow" + (i === st.turn.turnIndex && st.turn.phase !== "LOBBY" ? " turn" : "") });
+    row.append(el("div", { class:"dot", style:`background:${p.color ? COLOR_HEX[p.color] : "#555"}` }));
+    const nm = el("span", { class:"nm" }, p.name + (p.id === myPlayerId ? " (tu)" : ""));
+    row.append(nm);
+    const bits = [];
+    if (st.turn.phase === "LOBBY") bits.push(p.ready ? "✅ pronto" : "⬜");
+    else {
+      bits.push(`⭐${p.score}`);
+      bits.push(`🃏${(p.cards||[]).length}`);
+      if (p.eliminated) bits.push("💀");
+    }
+    if (p.connected === false) bits.push("📴");
+    row.append(el("span", { class:"inf" }, bits.join(" ")));
+    box.append(row);
+  });
+  if (st.turn.phase !== "LOBBY")
+    box.append(el("div", { class:"inf", style:"font-size:11px;color:var(--muted);margin-top:6px" },
+      `Obiettivo: ${st.settings.targetScore} punti`));
+}
 
-    <div class="small">
-      • Usa l’autocomplete per scegliere province valide<br/>
-      • In SETUP, se richiesto, devi scegliere anche la provincia neutrale
-    </div>
+function actionBtn(label, fn, cls) {
+  return el("button", { class: cls || "", onclick: fn }, label);
+}
 
-    <div id="log"></div>
+function numInput(key, def, min, max) {
+  const v = ui.vals[key] !== undefined ? ui.vals[key] : def;
+  const inp = el("input", { type:"number", min, max, value:v, style:"width:70px",
+    oninput: e => { ui.vals[key] = e.target.value; } });
+  return inp;
+}
+const valNum = (key, def) => {
+  const n = parseInt(ui.vals[key], 10);
+  return isNaN(n) ? def : n;
+};
 
-    <script>
-      let ws = null;
-      let myPlayerId = null;
+function renderActions(st) {
+  const box = $("actions");
+  box.innerHTML = "";
+  const ph = st.turn.phase;
+  const add = (...nodes) => nodes.forEach(n => box.append(n));
+  const hint = t => el("div", { class:"hint" }, t);
+  const selInfo = t => el("div", { class:"selInfo" }, t);
+  const row = (...kids) => { const r = el("div", { class:"row" }); kids.forEach(k => r.append(k)); return r; };
 
-      const CLIENT_VERSION = "index-v3-autocomplete";
-      const logEl = document.getElementById("log");
+  if (ph === "LOBBY") {
+    const m = me();
+    add(hint(`Condividi il codice stanza. Servono 3-5 giocatori (siete in ${st.players.length}).`));
+    add(row(actionBtn(m && m.ready ? "Pronto ✅" : "Sono pronto", () => sendCmd("ready"))));
+    const tsRow = row(el("label", {}, "Punti vittoria:"), numInput("targetScore", st.settings.targetScore, 5, 999));
+    add(tsRow);
+    const canStart = st.players.length >= 3 && st.players.every(p => p.ready);
+    const b = actionBtn("Avvia partita", () => sendCmd("start_game", { targetScore: valNum("targetScore", st.settings.targetScore) }), "primary");
+    b.disabled = !canStart;
+    add(row(b));
+    return;
+  }
 
-      const log = (x) => {
-        logEl.textContent += x + "\n";
-        logEl.scrollTop = logEl.scrollHeight;
-      };
+  if (!isMyTurn()) {
+    add(hint(`È il turno di ${turnPlayer().name}. Attendi…`));
+    return;
+  }
 
-      log(`🧩 client version: ${CLIENT_VERSION}`);
+  if (ph === "SETUP") {
+    const needNeutral = st.setup.neutralPool.length > 0;
+    add(hint(needNeutral
+      ? "Scegli una provincia libera per te (oro) e una per i neutrali (azzurro)."
+      : "Scegli una provincia libera per te."));
+    if (ui.sel.claim) add(selInfo(`Tua: ${prov(ui.sel.claim).name}`));
+    if (ui.sel.neutral) add(selInfo(`Neutrale: ${prov(ui.sel.neutral).name}`));
+    const ok = ui.sel.claim && (!needNeutral || ui.sel.neutral);
+    const b = actionBtn("Conferma", () => {
+      const payload = { provinceId: ui.sel.claim };
+      if (ui.sel.neutral) payload.neutralProvinceId = ui.sel.neutral;
+      sendCmd("setup_claim", payload);
+      ui.sel = {};
+    }, "primary");
+    b.disabled = !ok;
+    add(row(b, actionBtn("Annulla", () => { ui.sel = {}; render(); })));
+    return;
+  }
 
-      const genRoom = () => {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        let s = "";
-        for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
-        return s;
-      };
+  if (ph === "SCORE") {
+    add(hint("Inizio del tuo turno: calcola il punteggio e ricevi i rinforzi."));
+    add(row(actionBtn("Inizia rinforzi", () => sendCmd("reinforce_land_begin"), "primary")));
+    return;
+  }
 
-      const connect = () => {
-        const name = (document.getElementById("name").value.trim() || "anon");
-        const room = (document.getElementById("room").value.trim().toUpperCase() || "LOBBY");
+  if (ph === "REINFORCE_LAND") {
+    const remaining = st.pending.landReinforceRemaining - placedTotal();
+    add(hint(`Clicca sulle tue province per piazzare le legioni. Rimaste: ${remaining}`));
+    for (const [id, n] of Object.entries(ui.placements)) {
+      if (!n) continue;
+      const r = row(el("span", { style:"flex:1;font-size:13px;align-self:center" }, `${prov(id).name}: +${n}`),
+        actionBtn("−", () => { ui.placements[id]--; if (!ui.placements[id]) delete ui.placements[id]; render(); }));
+      add(r);
+    }
+    const b = actionBtn(`Conferma piazzamento (+${placedTotal()})`, () => {
+      sendCmd("reinforce_land_place", { placements: { ...ui.placements } });
+      ui.placements = {};
+    }, "primary");
+    b.disabled = remaining !== 0 || placedTotal() === 0;
+    add(row(b));
 
-        const url = `ws://${location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(name)}`;
-        ws = new WebSocket(url);
-
-        ws.onopen = () => log(`✅ connesso in stanza ${room}`);
-
-        ws.onmessage = (ev) => {
-          const msg = JSON.parse(ev.data);
-
-          if (msg.type === "welcome") {
-            myPlayerId = msg.playerId;
-            log(`👤 playerId: ${myPlayerId}`);
-            return;
-          }
-
-          if (msg.type === "join") log(`🟢 ${msg.player} è entrato`);
-          if (msg.type === "leave") log(`🔴 ${msg.player} è uscito`);
-
-          if (msg.type === "state") {
-            const st = msg.state;
-            const phase = st.turn.phase;
-            const round = st.turn.round;
-            const idx = st.turn.turnIndex;
-
-            const playersLine = st.players.map(p => {
-              const r = p.eliminated ? "💀" : (p.ready ? "✅" : "⬜");
-              const c = p.color ? `(${p.color})` : "";
-              const score = p.score !== undefined ? ` ⭐${p.score}` : "";
-              const cards = p.cards ? ` 🃏${p.cards.length}` : "";
-              return `${r} ${p.name}${c}${score}${cards}`;
-            }).join(" | ");
-
-            log(`📌 round=${round} phase=${phase} turnIndex=${idx}`);
-            log(`👥 ${playersLine}`);
-            if (st.winner) log(`🏆 VINCITORE: ${st.winner}`);
-
-            // carte in mano (debug: visibili tutte)
-            const cardLines = st.players
-              .filter(p => p.cards && p.cards.length)
-              .map(p => `${p.name}: ` + p.cards.map((c, i) => `${i}=${c.symbol}`).join(","));
-            if (cardLines.length) log(`🃏 ${cardLines.join(" | ")}`);
-
-            // centri di potere
-            if (st.map && st.map.provinces) {
-              const pcs = Object.keys(st.map.provinces)
-                .filter(id => st.map.provinces[id].power_center)
-                .map(id => `${id}(${st.map.provinces[id].owner})`);
-              if (pcs.length) log(`🏟️ ${pcs.join(" | ")}`);
-            }
-
-            // triremi in gioco
-            if (st.map && st.map.seas) {
-              const seaLines = Object.keys(st.map.seas)
-                .filter(id => Object.keys(st.map.seas[id].triremes || {}).length > 0)
-                .map(id => {
-                  const t = st.map.seas[id].triremes;
-                  return `${id}: ` + Object.keys(t).map(c => `${c}=${t[c]}`).join(",");
-                });
-              if (seaLines.length) log(`⛵ ${seaLines.join(" | ")}`);
-
-              const dlSea = document.getElementById("seaList");
-              if (dlSea && !dlSea.children.length) {
-                dlSea.innerHTML = Object.keys(st.map.seas).sort()
-                  .map(id => `<option value="${id}"></option>`).join("");
-              }
-            }
-
-            
-            // aggiorna datalist province
-            if (st.map && st.map.provinces) {
-              const provinces = st.map.provinces;
-
-              // --- PROVINCE LIBERE (SETUP) ---
-              const dlFree = document.getElementById("provListFree");
-              if (dlFree) {
-                const freeIds = Object.keys(provinces)
-                  .filter(id => provinces[id] && provinces[id].owner === null)
-                  .sort();
-                dlFree.innerHTML = freeIds.map(id => `<option value="${id}"></option>`).join("");
-              }
-
-              // --- TUTTE LE PROVINCE (ATTACCHI / DEBUG) ---
-              const dlAll = document.getElementById("provListAll");
-              if (dlAll) {
-                const allIds = Object.keys(provinces).sort();
-                dlAll.innerHTML = allIds.map(id => `<option value="${id}"></option>`).join("");
-              }
-
-              // pulizia input se diventano invalidi (solo setup)
-              const provEl = document.getElementById("prov");
-              const nprovEl = document.getElementById("nprov");
-
-              if (provEl) {
-                const v = provEl.value.trim().toUpperCase();
-                if (v && provinces[v] && provinces[v].owner !== null) provEl.value = "";
-              }
-              if (nprovEl) {
-                const v = nprovEl.value.trim().toUpperCase();
-                if (v && provinces[v] && provinces[v].owner !== null) nprovEl.value = "";
-              }
-            }
-
-          }
-
-          if (msg.type === "error") log(`❌ ERROR: ${msg.error}`);
-        };
-
-        ws.onclose = () => log("❌ disconnesso");
-      };
-
-      const sendCmd = (cmd, payload = {}) => {
-        if (!ws || ws.readyState !== 1) return log("⚠️ non connesso");
-        if (!myPlayerId) return log("⚠️ manca welcome/playerId");
-        ws.send(JSON.stringify({ type: "cmd", cmd, playerId: myPlayerId, payload }));
-      };
-
-      // --- UI handlers ---
-      document.getElementById("create").onclick = () => {
-        const r = genRoom();
-        document.getElementById("room").value = r;
-        log(`🔑 stanza creata: ${r}`);
-      };
-
-      document.getElementById("connect").onclick = () => connect();
-      document.getElementById("ready").onclick = () => sendCmd("ready");
-      document.getElementById("start").onclick = () => sendCmd("start_game");
-      document.getElementById("reset").onclick = () => sendCmd("reset_game");
-      document.getElementById("advance").onclick = () => sendCmd("advance_phase");
-      document.getElementById("clear").onclick = () => (logEl.textContent = "");
-
-      document.getElementById("claim").onclick = () => {
-        const provinceId = document.getElementById("prov").value.trim().toUpperCase();
-        const neutralProvinceId = document.getElementById("nprov").value.trim().toUpperCase();
-
-        log(`🧪 DEBUG claim -> provinceId='${provinceId}' neutral='${neutralProvinceId}'`);
-
-        if (!provinceId) {
-          log("❌ Inserisci la tua provincia");
-          return;
+    // tris
+    const m = me();
+    if (!st.turn.trisPlayed && m.cards.length >= 3) {
+      add(el("div", { style:"border-top:1px solid var(--line);margin:8px 0 4px" }));
+      add(hint("Tris: seleziona 3 carte qui sotto (3 uguali = 8, 3 diverse = 10 legioni)."));
+      if (ui.tris.length === 3) {
+        const syms = ui.tris.map(i => m.cards[i].symbol);
+        const nTri = syms.filter(s => s === "TRIREME").length;
+        const mySeas = Object.keys(st.map.seas).filter(sid =>
+          sea(sid).adj_land.some(pid => isMine(pid)));
+        for (let k = 0; k < nTri; k++) {
+          const s = el("select", { oninput: e => { ui.vals["triSea"+k] = e.target.value; } });
+          s.append(el("option", { value:"" }, "— trireme " + (k+1) + ": nessun mare —"));
+          mySeas.forEach(sid => {
+            const o = el("option", { value: sid }, sea(sid).name);
+            if (ui.vals["triSea"+k] === sid) o.selected = true;
+            s.append(o);
+          });
+          add(row(s));
         }
-
-        const payload = { provinceId };
-        if (neutralProvinceId) payload.neutralProvinceId = neutralProvinceId;
-
-        sendCmd("setup_claim", payload);
-      };
-
-      document.getElementById("reinforceBegin").onclick = () => sendCmd("reinforce_land_begin");
-
-    document.getElementById("trisGo").onclick = () => {
-      const cardsRaw = document.getElementById("trisCards").value.trim();
-      if (!cardsRaw) return log("❌ Inserisci gli indici delle 3 carte (es. 0,1,2)");
-      const cards = cardsRaw.split(",").map(x => parseInt(x.trim(), 10));
-      if (cards.length !== 3 || cards.some(isNaN)) return log("❌ Servono 3 indici numerici");
-
-      const payload = { cards };
-      const seasRaw = document.getElementById("trisSeas").value.trim();
-      if (seasRaw) payload.triremeSeas = seasRaw.split(",").map(x => x.trim().toUpperCase());
-      const pc = document.getElementById("trisPc").value.trim().toUpperCase();
-      if (pc) payload.powerCenterProvince = pc;
-
-      sendCmd("play_tris", payload);
-    };
-
-      document.getElementById("reinforcePlace").onclick = () => {
-        const s = document.getElementById("placements").value.trim();
-        if (!s) return log("❌ Inserisci placements (es: ITALIA:2,CISALPINA:1)");
-
-        const placements = {};
-        for (const part of s.split(",")) {
-          const [k, v] = part.split(":").map(x => x.trim());
-          if (!k || !v) return log(`❌ formato non valido: '${part}'`);
-          placements[k.toUpperCase()] = parseInt(v, 10);
+        if (syms.includes("ARENA")) {
+          const s = el("select", { oninput: e => { ui.vals.pcProv = e.target.value; } });
+          s.append(el("option", { value:"" }, "— centro di potere: nessuno —"));
+          Object.keys(st.map.provinces).filter(id => isMine(id) && !prov(id).power_center)
+            .forEach(id => {
+              const o = el("option", { value:id }, prov(id).name);
+              if (ui.vals.pcProv === id) o.selected = true;
+              s.append(o);
+            });
+          add(row(s));
         }
-
-        sendCmd("reinforce_land_place", { placements });
-      };
-
-      document.getElementById("atkRoll").onclick = () => {
-      const from = document.getElementById("atkFrom").value.trim().toUpperCase();
-      const to = document.getElementById("atkTo").value.trim().toUpperCase();
-      const attackDice = parseInt(document.getElementById("atkDice").value.trim(), 10) || 3;
-
-      if (!from || !to) {
-        log("❌ Inserisci atkFrom e atkTo");
-        return;
+        add(row(actionBtn("Gioca tris", () => {
+          const payload = { cards: [...ui.tris] };
+          const seas = [];
+          for (let k = 0; k < nTri; k++) if (ui.vals["triSea"+k]) seas.push(ui.vals["triSea"+k]);
+          if (seas.length) payload.triremeSeas = seas;
+          if (ui.vals.pcProv) payload.powerCenterProvince = ui.vals.pcProv;
+          sendCmd("play_tris", payload);
+          ui.tris = [];
+        }, "primary")));
       }
+    }
+    return;
+  }
 
-      sendCmd("land_attack_roll", { from, to, attackDice });
+  if (ph === "REINFORCE_NAVAL") {
+    add(hint("Fase navale: compra triremi (3 legioni ciascuna) o converti una trireme in 2 legioni."));
+    add(row(
+      actionBtn(ui.mode === "buy" ? "🛒 Compra… (attivo)" : "Compra trireme", () => { ui.mode = ui.mode === "buy" ? null : "buy"; ui.sel = {}; render(); }),
+      actionBtn(ui.mode === "t2l" ? "⚓→🗡 (attivo)" : "Trireme → legioni", () => { ui.mode = ui.mode === "t2l" ? null : "t2l"; ui.sel = {}; render(); }),
+    ));
+    if (ui.mode === "buy") add(hint(ui.sel.prov
+      ? `Provincia: ${prov(ui.sel.prov).name} → ora clicca un mare adiacente.`
+      : "Clicca una tua provincia costiera con almeno 4 legioni."));
+    if (ui.mode === "t2l") add(hint(ui.sel.sea
+      ? `Mare: ${sea(ui.sel.sea).name} → ora clicca una tua provincia adiacente.`
+      : "Clicca un mare con una tua trireme."));
+    add(row(actionBtn("Fine fase navale", () => sendCmd("end_phase"))));
+    return;
+  }
+
+  if (ph === "NAVAL_MOVE") {
+    add(hint("Sposta triremi tra mari adiacenti (un solo movimento)."));
+    if (ui.sel.fromSea) add(selInfo(`Da: ${sea(ui.sel.fromSea).name}${ui.sel.toSea ? " → " + sea(ui.sel.toSea).name : ""}`));
+    if (ui.sel.fromSea && ui.sel.toSea) {
+      const max = myTriremes(ui.sel.fromSea);
+      add(row(el("label", {}, "Triremi:"), numInput("nmCount", max, 1, max),
+        actionBtn("Sposta", () => {
+          sendCmd("naval_move", { fromSea: ui.sel.fromSea, toSea: ui.sel.toSea, count: valNum("nmCount", max) });
+          ui.sel = {};
+        }, "primary")));
+    }
+    add(row(actionBtn("Salta movimento", () => sendCmd("end_phase"))));
+    return;
+  }
+
+  if (ph === "NAVAL_COMBAT") {
+    add(hint("Combattimento navale: clicca un mare dove hai triremi insieme a un avversario."));
+    if (ui.sel.sea) {
+      const t = sea(ui.sel.sea).triremes || {};
+      const targets = Object.entries(t).filter(([c,n]) => c !== myColor() && n > 0);
+      add(selInfo(`Mare: ${sea(ui.sel.sea).name}`));
+      const r = row();
+      targets.forEach(([c,n]) => {
+        const b = actionBtn(`${c} (${n}⛵)`, () => { ui.sel.target = c; render(); });
+        if (ui.sel.target === c) b.classList.add("primary");
+        r.append(b);
+      });
+      add(r);
+      if (ui.sel.target) {
+        const maxD = Math.min(3, myTriremes(ui.sel.sea));
+        add(row(el("label", {}, "Dadi:"), numInput("ncDice", maxD, 1, maxD),
+          actionBtn("Attacca", () => {
+            sendCmd("naval_attack_roll", { seaId: ui.sel.sea, targetColor: ui.sel.target, attackDice: valNum("ncDice", maxD) });
+          }, "primary")));
+      }
+    }
+    add(row(actionBtn("Fine combattimenti navali", () => sendCmd("end_phase"))));
+    return;
+  }
+
+  if (ph === "SEA_ATTACKS") {
+    add(hint("Attacco via mare: tua provincia costiera → provincia nemica oltre un mare che controlli."));
+    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
+    if (ui.sel.from && ui.sel.to) {
+      const common = prov(ui.sel.from).adj_sea.filter(s => prov(ui.sel.to).adj_sea.includes(s));
+      const s = el("select", { oninput: e => { ui.vals.saSea = e.target.value; } });
+      common.forEach(sid => {
+        const o = el("option", { value: sid }, sea(sid).name);
+        if ((ui.vals.saSea || common[0]) === sid) o.selected = true;
+        s.append(o);
+      });
+      const maxL = prov(ui.sel.from).legions - 1;
+      add(row(el("label", {}, "Mare:"), s));
+      add(row(el("label", {}, "Legioni:"), numInput("saLeg", Math.min(3, maxL), 1, maxL),
+        actionBtn("Attacca", () => {
+          sendCmd("sea_attack", {
+            from: ui.sel.from, to: ui.sel.to,
+            seaId: ui.vals.saSea || common[0],
+            legions: valNum("saLeg", Math.min(3, maxL)),
+          });
+          ui.sel = {};
+        }, "primary")));
+    }
+    add(row(actionBtn("Fine attacchi via mare", () => sendCmd("end_phase"))));
+    return;
+  }
+
+  if (ph === "LAND_ATTACKS") {
+    const occ = st.pending.occupation;
+    if (occ) {
+      const from = prov(occ.from);
+      const maxN = from.legions - 1;
+      add(hint(`Conquista di ${prov(occ.to).name}! Puoi spostare altre legioni da ${from.name}.`));
+      if (maxN > 0) {
+        add(row(el("label", {}, "Legioni extra:"), numInput("occN", maxN, 1, maxN),
+          actionBtn("Sposta", () => sendCmd("occupy_extra", { count: valNum("occN", maxN) }), "primary")));
+      }
+      add(row(actionBtn("Continua senza spostare", () => { ui.sel = {}; sendCmd("end_attacks"); })));
+      add(hint("…oppure lancia un altro attacco cliccando sulla mappa (chiude l'occupazione)."));
+    }
+    if (!occ) {
+      add(hint("Attacchi terrestri: clicca una tua provincia (con 2+ legioni), poi una nemica adiacente."));
+      if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
+      if (ui.sel.from && ui.sel.to) {
+        const maxD = Math.min(3, prov(ui.sel.from).legions - 1);
+        add(row(el("label", {}, "Dadi:"), numInput("atkDice", maxD, 1, maxD),
+          actionBtn("Attacca ⚔️", () => {
+            sendCmd("land_attack_roll", { from: ui.sel.from, to: ui.sel.to, attackDice: valNum("atkDice", maxD) });
+          }, "primary")));
+      }
+      add(row(actionBtn("Fine attacchi", () => sendCmd("end_attacks"))));
+    }
+    return;
+  }
+
+  if (ph === "STRATEGIC_MOVE") {
+    add(hint("Spostamento strategico (facoltativo, uno solo): tra tue province collegate via terra o via mare controllato."));
+    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
+    if (ui.sel.from && ui.sel.to) {
+      const maxN = prov(ui.sel.from).legions - 1;
+      add(row(el("label", {}, "Legioni:"), numInput("smN", maxN, 1, maxN),
+        actionBtn("Sposta e chiudi turno", () => {
+          sendCmd("strategic_move", { from: ui.sel.from, to: ui.sel.to, count: valNum("smN", maxN) });
+          ui.sel = {};
+        }, "primary")));
+    }
+    add(row(actionBtn("Fine turno (nessuno spostamento)", () => sendCmd("end_turn"))));
+    return;
+  }
+
+  add(hint(`Fase: ${ph}`));
+}
+
+function renderCards(st) {
+  const box = $("cardsBox");
+  box.innerHTML = "";
+  const m = me();
+  if (!m || !m.cards || m.cards.length === 0) {
+    box.append(el("span", { style:"font-size:13px;color:var(--muted)" }, "Nessuna carta."));
+    return;
+  }
+  const selectable = st.turn.phase === "REINFORCE_LAND" && isMyTurn() && !st.turn.trisPlayed;
+  m.cards.forEach((c, i) => {
+    const chip = el("span", { class: "cardChip" + (ui.tris.includes(i) ? " sel" : "") },
+      `${CARD_ICON[c.symbol] || "❓"} ${c.symbol.toLowerCase()}`);
+    if (selectable) chip.onclick = () => {
+      const at = ui.tris.indexOf(i);
+      if (at >= 0) ui.tris.splice(at, 1);
+      else if (ui.tris.length < 3) ui.tris.push(i);
+      render();
     };
+    box.append(chip);
+  });
+}
 
-    document.getElementById("occExtra").onclick = () => {
-      const count = parseInt(document.getElementById("occCount").value.trim(), 10);
-      if (!count || count < 1) return log("❌ Inserisci quante legioni extra spostare");
-      sendCmd("occupy_extra", { count });
-    };
+function renderLog(st) {
+  const box = $("logBox");
+  const myName = (me() || {}).name;
+  box.innerHTML = "";
+  (st.log || []).slice(-20).forEach(e => {
+    const d = el("div", { class: myName && e.text.includes(myName) ? "me" : "" }, e.text);
+    box.append(d);
+  });
+  box.scrollTop = box.scrollHeight;
+}
 
-    document.getElementById("endAttacks").onclick = () => sendCmd("end_attacks");
-    document.getElementById("endTurn").onclick = () => sendCmd("end_turn");
-    document.getElementById("endPhase").onclick = () => sendCmd("end_phase");
+/* ============ bootstrap ============ */
+$("btnCreate").onclick = () => {
+  $("room").value = genRoom();
+  $("joinMsg").textContent = "Codice generato: condividilo con gli altri giocatori.";
+};
+$("btnConnect").onclick = connect;
+$("btnReset").onclick = () => {
+  if (confirm("Riportare la partita alla lobby per tutti?")) sendCmd("reset_game");
+};
+$("bannerReset").onclick = () => sendCmd("reset_game");
+$("btnDebug").onclick = () => { location.href = "/debug.html"; };
+$("room").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
 
-    document.getElementById("t2lGo").onclick = () => {
-      const seaId = document.getElementById("t2lSea").value.trim().toUpperCase();
-      const provinceId = document.getElementById("t2lProv").value.trim().toUpperCase();
-      if (!seaId || !provinceId) return log("❌ Inserisci mare e provincia");
-      sendCmd("trireme_to_legions", { seaId, provinceId });
-    };
-
-    document.getElementById("btGo").onclick = () => {
-      const provinceId = document.getElementById("btProv").value.trim().toUpperCase();
-      const seaId = document.getElementById("btSea").value.trim().toUpperCase();
-      if (!provinceId || !seaId) return log("❌ Inserisci provincia e mare");
-      sendCmd("buy_trireme", { provinceId, seaId });
-    };
-
-    document.getElementById("nmGo").onclick = () => {
-      const fromSea = document.getElementById("nmFrom").value.trim().toUpperCase();
-      const toSea = document.getElementById("nmTo").value.trim().toUpperCase();
-      const count = parseInt(document.getElementById("nmCount").value.trim(), 10);
-      if (!fromSea || !toSea || !count) return log("❌ Inserisci da/a/quante");
-      sendCmd("naval_move", { fromSea, toSea, count });
-    };
-
-    document.getElementById("ncGo").onclick = () => {
-      const seaId = document.getElementById("ncSea").value.trim().toUpperCase();
-      const targetColor = document.getElementById("ncTarget").value.trim().toUpperCase();
-      const attackDice = parseInt(document.getElementById("ncDice").value.trim(), 10) || 3;
-      if (!seaId || !targetColor) return log("❌ Inserisci mare e colore bersaglio");
-      sendCmd("naval_attack_roll", { seaId, targetColor, attackDice });
-    };
-
-    document.getElementById("saGo").onclick = () => {
-      const from = document.getElementById("saFrom").value.trim().toUpperCase();
-      const to = document.getElementById("saTo").value.trim().toUpperCase();
-      const seaId = document.getElementById("saSea").value.trim().toUpperCase();
-      const legions = parseInt(document.getElementById("saLegions").value.trim(), 10);
-      if (!from || !to || !seaId || !legions) return log("❌ Inserisci da/a/mare/legioni");
-      sendCmd("sea_attack", { from, to, seaId, legions });
-    };
-
-    document.getElementById("smGo").onclick = () => {
-      const from = document.getElementById("smFrom").value.trim().toUpperCase();
-      const to = document.getElementById("smTo").value.trim().toUpperCase();
-      const count = parseInt(document.getElementById("smCount").value.trim(), 10);
-      if (!from || !to || !count) return log("❌ Inserisci da/a/quante per lo spostamento");
-      sendCmd("strategic_move", { from, to, count });
-    };
-
-    </script>
-  </body>
+(() => {
+  const s = loadSession();
+  if (s) {
+    $("name").value = s.name || "";
+    $("room").value = s.room || "";
+    $("joinMsg").textContent = `Sessione salvata per la stanza ${s.room}: premi Connetti per rientrare.`;
+  }
+})();
+</script>
+</body>
 </html>
