@@ -193,6 +193,51 @@ def main():
         state = send_cmd(a2, players, "end_attacks")
         state = send_cmd(a2, players, "end_turn")
 
+        print("== TURNO 2b: eccezione 14.2 (conquista con 3 dadi da provincia con 4) ==")
+        ax = current_player(state, players)
+        state = send_cmd(ax, players, "reinforce_land_begin")
+        rem = state["pending"]["landReinforceRemaining"]
+
+        # Fx: mia con almeno 2 vicini nemici (dopo la conquista resta al confine nemico)
+        provs = state["map"]["provinces"]
+        Fx = Tx = None
+        for pid in owned_by(state, ax.color):
+            enemies = [nb for nb in provs[pid]["adj_land"] if is_enemy(provs, nb, ax.color)]
+            if len(enemies) >= 2:
+                Fx, Tx = pid, enemies[0]
+                break
+        check("multi-border province found (exception test)", Fx is not None)
+
+        state = send_cmd(ax, players, "reinforce_land_place",
+                         {"placements": {owned_by(state, ax.color)[0]: rem}})
+        live = gs_live()
+        for _ in range(4):
+            state = send_cmd(ax, players, "end_phase")
+
+        # con 1 solo difensore la conquista avviene senza perdite dell'attaccante,
+        # quindi al momento della vittoria Fx ha sempre 4 legioni
+        conquered = False
+        for _ in range(30):
+            live["map"]["provinces"][Fx]["legions"] = 4
+            live["map"]["provinces"][Tx]["legions"] = 1
+            state = send_cmd(ax, players, "land_attack_roll",
+                             {"from": Fx, "to": Tx, "attackDice": 3})
+            if state["map"]["provinces"][Tx]["owner"] == ax.color:
+                conquered = True
+                break
+        check("conquest with 3 dice from 4-legion province", conquered)
+        check("attacker province left with 1 (14.2 exception)",
+              state["map"]["provinces"][Fx]["legions"] == 1)
+        check("conquered province got 3 legions (min move = dice)",
+              state["map"]["provinces"][Tx]["legions"] == 3)
+        # niente legioni extra: la guarnigione minima resta vincolante per le mosse volontarie
+        expect_error(ax, "occupy_extra", {"count": 1},
+                     "14.2", "occupy_extra refused when only 1 left (14.2)")
+        # sana il deficit per poter chiudere il turno (regola casa garrison-first)
+        live["map"]["provinces"][Fx]["legions"] = 2
+        state = send_cmd(ax, players, "end_attacks")
+        state = send_cmd(ax, players, "end_turn")
+
         print("== TURNO 3: guarnigione Â§14.3 (attacco via mare) ==")
         a3 = current_player(state, players)
         state = send_cmd(a3, players, "reinforce_land_begin")

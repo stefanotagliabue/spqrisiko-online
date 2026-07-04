@@ -340,6 +340,42 @@ def min_garrison(gs: Dict[str, Any], prov_id: str, color: str) -> int:
     return 1
 
 
+def garrison_deficits(gs: Dict[str, Any], color: str) -> list[str]:
+    """
+    Regola casa "garrison-first": province di color a 1 legione con almeno
+    un vicino terrestre nemico (neutrali inclusi).
+    """
+    return sorted(
+        pid for pid, pr in gs["map"]["provinces"].items()
+        if pr.get("owner") == color and int(pr.get("legions", 0)) == 1
+        and min_garrison(gs, pid, color) == 2
+    )
+
+
+def find_rebalance_move(gs: Dict[str, Any], color: str, deficits: list[str]) -> Optional[Dict[str, str]]:
+    """
+    Cerca uno spostamento strategico (from, to) che porti a 2 una provincia in
+    deficit. Usa esattamente i criteri di validazione di strategic_move (rotta
+    via terra o via mare con superiorità navale §15.2, guarnigione minima §14.2
+    sulla donatrice), così la mossa restituita è sempre eseguibile.
+    """
+    provs = gs["map"]["provinces"]
+    for d in deficits:
+        d_seas = set(provs[d].get("adj_sea", []))
+        for q, pq in provs.items():
+            if q == d or pq.get("owner") != color:
+                continue
+            if int(pq.get("legions", 0)) - min_garrison(gs, q, color) < 1:
+                continue
+            route = d in pq.get("adj_land", []) or any(
+                sid in d_seas and has_sea_superiority(gs["map"]["seas"][sid], color)
+                for sid in pq.get("adj_sea", [])
+            )
+            if route:
+                return {"from": q, "to": d}
+    return None
+
+
 def is_last_province_protected(gs: Dict[str, Any], defender_color: Optional[str]) -> bool:
     """§18.4: nessuno può essere eliminato prima della fine del 4° round."""
     if not defender_color or str(defender_color).startswith("NEUTRAL_"):
@@ -933,6 +969,30 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         if total != remaining:
                             await ws.send_json({"type": "error", "error": f"Placements sum {total} != remaining {remaining}"})
                             continue
+
+                        # Regola casa anti-farming ("garrison-first"): finché ci sono
+                        # province di frontiera a 1 legione, i rinforzi devono prima
+                        # riportarle a 2. I neutrali contano come nemici; vale anche
+                        # per i rinforzi extra da tris, che si sommano prima del
+                        # piazzamento unico.
+                        norm = {str(k).strip().upper(): int(v) for k, v in placements.items()}
+                        deficit = sorted(
+                            pid for pid, pr in gs["map"]["provinces"].items()
+                            if pr.get("owner") == p["color"]
+                            and int(pr.get("legions", 0)) == 1
+                            and min_garrison(gs, pid, p["color"]) == 2
+                        )
+                        if deficit:
+                            if remaining >= len(deficit):
+                                missing = [pid for pid in deficit if norm.get(pid, 0) < 1]
+                                if missing:
+                                    await ws.send_json({"type": "error", "error": f"Garrison-first: border provinces at 1 legion must be reinforced first: {', '.join(missing)}"})
+                                    continue
+                            else:
+                                bad = sorted(pid for pid, cnt in norm.items() if pid not in deficit or cnt > 1)
+                                if bad:
+                                    await ws.send_json({"type": "error", "error": f"Garrison-first: only {remaining} reinforcements for {len(deficit)} border provinces at 1 legion; place 1 each on them only ({', '.join(deficit)})"})
+                                    continue
 
                         # applica
                         for raw_prov_id, raw_count in placements.items():
@@ -1698,6 +1758,15 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         await ws.send_json({"type": "error", "error": f"Must leave at least {garrison} legions in {from_id} (§14.2)"})
                         continue
 
+                    # Regola casa "garrison-first": se esiste una mossa che sana una
+                    # frontiera a 1, lo spostamento deve ridurre le carenze
+                    deficits = garrison_deficits(gs, p["color"])
+                    if deficits and to_id not in deficits:
+                        rb = find_rebalance_move(gs, p["color"], deficits)
+                        if rb:
+                            await ws.send_json({"type": "error", "error": f"Garrison-first: the strategic move must reinforce a border province at 1 legion ({', '.join(deficits)}), e.g. {rb['from']} -> {rb['to']}"})
+                            continue
+
                     prov_from["legions"] -= count
                     prov_to["legions"] += count
                     gs["turn"]["usedStrategicMove"] = True
@@ -1721,6 +1790,16 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                         continue
 
                     p = get_player_by_id(gs, player_id)
+
+                    # Regola casa "garrison-first": non si chiude il turno se una
+                    # frontiera a 1 legione può ancora essere sanata con lo
+                    # spostamento strategico
+                    deficits = garrison_deficits(gs, p["color"])
+                    rb = find_rebalance_move(gs, p["color"], deficits) if deficits else None
+                    if rb:
+                        await ws.send_json({"type": "error", "error": f"Garrison-first: border provinces at 1 legion ({', '.join(deficits)}): use the strategic move to rebalance, e.g. {rb['from']} -> {rb['to']}"})
+                        continue
+
                     add_log(room, f"{p['name']} ends turn")
                     finish_turn(room)
                     await broadcast_state_async(room)

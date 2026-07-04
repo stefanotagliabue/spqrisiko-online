@@ -136,6 +136,7 @@
     .prov.clickable:hover rect { stroke: #fff; stroke-width: 2.2; }
     .prov.selA rect { stroke: var(--accent); stroke-width: 3; }
     .prov.selB rect { stroke: #7fd4ff; stroke-width: 3; }
+    .prov.deficit rect { stroke: #ff5252; stroke-width: 3; stroke-dasharray: 5 3; }
     .prov.neutralOwner rect { stroke-dasharray: 4 2; }
     .sea ellipse { fill: rgba(80,140,210,.16); stroke: #3d5f8a; stroke-width: 1.2; cursor: pointer; }
     .sea text { pointer-events: none; }
@@ -386,6 +387,33 @@ const isMine = id => prov(id).owner === myColor();
 const isEnemy = id => prov(id).owner !== null && prov(id).owner !== myColor();
 const isFree = id => prov(id).owner === null;
 const placedTotal = () => Object.values(ui.placements).reduce((a,b)=>a+b,0);
+/* regola casa "garrison-first": province mie a 1 legione con vicino terrestre nemico */
+const garrisonDeficits = () => Object.keys(lastState.map.provinces).filter(id => {
+  const pr = prov(id);
+  return pr.owner === myColor() && pr.legions === 1 && pr.adj_land.some(isEnemy);
+});
+const minGarrisonOf = id => prov(id).adj_land.some(isEnemy) ? 2 : 1;
+/* §15.2: strettamente più triremi di ogni altro giocatore presente nel mare */
+const hasSeaSuperiority = sid => {
+  const t = sea(sid).triremes || {};
+  const mine = t[myColor()] || 0;
+  return mine > 0 && Object.entries(t).every(([c, n]) => c === myColor() || n < mine);
+};
+/* una mossa di riequilibrio possibile verso una provincia in deficit, o null */
+function rebalanceMove() {
+  for (const d of garrisonDeficits()) {
+    const pd = prov(d);
+    for (const q of Object.keys(lastState.map.provinces)) {
+      if (q === d || !isMine(q)) continue;
+      const pq = prov(q);
+      if (pq.legions <= minGarrisonOf(q)) continue;
+      if (pq.adj_land.includes(d) ||
+          pq.adj_sea.some(s => pd.adj_sea.includes(s) && hasSeaSuperiority(s)))
+        return { from: q, to: d };
+    }
+  }
+  return null;
+}
 const myTriremes = sid => (sea(sid).triremes || {})[myColor()] || 0;
 
 function ownerFill(owner) {
@@ -440,8 +468,10 @@ function computeClickables() {
       if (ui.sel.from) prov(ui.sel.from).adj_land.filter(isEnemy).forEach(id => provs.add(id));
     }
   } else if (ph === "STRATEGIC_MOVE") {
+    // garrison-first: se il riequilibrio è obbligato, come destinazione evidenzia solo i deficit
+    const mustFix = rebalanceMove() ? new Set(garrisonDeficits()) : null;
     if (!ui.sel.from) all.filter(id => isMine(id) && prov(id).legions > 1).forEach(id => provs.add(id));
-    else all.filter(id => isMine(id) && id !== ui.sel.from).forEach(id => provs.add(id));
+    else all.filter(id => isMine(id) && id !== ui.sel.from && (!mustFix || mustFix.has(id))).forEach(id => provs.add(id));
   }
   return { provs, seas };
 }
@@ -536,6 +566,8 @@ function render() {
 
 function renderMapState(st) {
   const { provs: clkP, seas: clkS } = computeClickables();
+  const defs = new Set(isMyTurn() && ["REINFORCE_LAND", "STRATEGIC_MOVE"].includes(st.turn.phase)
+    ? garrisonDeficits().filter(id => !(ui.placements[id] > 0)) : []);
   for (const [id, pr] of Object.entries(st.map.provinces)) {
     const g = $(`prov_${id}`);
     if (!g) continue;
@@ -545,6 +577,7 @@ function renderMapState(st) {
     g.querySelector(".pcStar").textContent = pr.power_center ? "★" : "";
     g.classList.toggle("neutralOwner", !!pr.owner && pr.owner.startsWith("NEUTRAL_"));
     g.classList.toggle("clickable", clkP.has(id));
+    g.classList.toggle("deficit", defs.has(id));
     g.classList.toggle("selA", [ui.sel.claim, ui.sel.from, ui.sel.prov].includes(id));
     g.classList.toggle("selB", [ui.sel.neutral, ui.sel.to].includes(id));
   }
@@ -658,6 +691,20 @@ function renderActions(st) {
   if (ph === "REINFORCE_LAND") {
     const remaining = st.pending.landReinforceRemaining - placedTotal();
     add(hint(`Clicca sulle tue province per piazzare le legioni. Rimaste: ${remaining}`));
+
+    // regola casa "garrison-first": prima le guarnigioni di frontiera a 1
+    const defs = garrisonDeficits();
+    const uncovered = defs.filter(id => !(ui.placements[id] > 0));
+    const enough = st.pending.landReinforceRemaining >= defs.length;
+    const violates = enough
+      ? uncovered.length > 0
+      : Object.entries(ui.placements).some(([id, n]) => !defs.includes(id) || n > 1);
+    if (defs.length && violates) {
+      add(hint(enough
+        ? `⚠️ Prima riporta a 2 le guarnigioni di frontiera: ${uncovered.map(id => prov(id).name).join(", ")}`
+        : `⚠️ Rinforzi insufficienti per tutte le guarnigioni: piazzane 1 ciascuno solo sulle province tratteggiate in rosso`));
+    }
+
     for (const [id, n] of Object.entries(ui.placements)) {
       if (!n) continue;
       const r = row(el("span", { style:"flex:1;font-size:13px;align-self:center" }, `${prov(id).name}: +${n}`),
@@ -668,7 +715,7 @@ function renderActions(st) {
       sendCmd("reinforce_land_place", { placements: { ...ui.placements } });
       ui.placements = {};
     }, "primary");
-    b.disabled = remaining !== 0 || placedTotal() === 0;
+    b.disabled = remaining !== 0 || placedTotal() === 0 || violates;
     add(row(b));
 
     // tris
@@ -829,16 +876,29 @@ function renderActions(st) {
 
   if (ph === "STRATEGIC_MOVE") {
     add(hint("Spostamento strategico (facoltativo, uno solo): tra tue province collegate via terra o via mare controllato."));
+    // regola casa "garrison-first": se una frontiera a 1 è sanabile, il riequilibrio è obbligato
+    const defs = garrisonDeficits();
+    const rb = defs.length ? rebalanceMove() : null;
+    if (rb) {
+      add(hint(`⚠️ Riequilibrio obbligatorio: porta a 2 una guarnigione di frontiera ` +
+        `(${defs.map(id => prov(id).name).join(", ")}), es. da ${prov(rb.from).name} a ${prov(rb.to).name}.`));
+    }
     if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
     if (ui.sel.from && ui.sel.to) {
       const maxN = prov(ui.sel.from).legions - 1;
-      add(row(el("label", {}, "Legioni:"), numInput("smN", maxN, 1, maxN),
-        actionBtn("Sposta e chiudi turno", () => {
-          sendCmd("strategic_move", { from: ui.sel.from, to: ui.sel.to, count: valNum("smN", maxN) });
-          ui.sel = {};
-        }, "primary")));
+      const badTarget = rb && !defs.includes(ui.sel.to);
+      if (badTarget) add(hint("Questa destinazione non sana nessuna guarnigione di frontiera."));
+      const bMove = actionBtn("Sposta e chiudi turno", () => {
+        sendCmd("strategic_move", { from: ui.sel.from, to: ui.sel.to, count: valNum("smN", maxN) });
+        ui.sel = {};
+      }, "primary");
+      bMove.disabled = badTarget;
+      add(row(el("label", {}, "Legioni:"), numInput("smN", maxN, 1, maxN), bMove));
     }
-    add(row(actionBtn("Fine turno (nessuno spostamento)", () => sendCmd("end_turn"))));
+    const bEnd = actionBtn("Fine turno (nessuno spostamento)", () => sendCmd("end_turn"));
+    bEnd.disabled = !!rb;
+    if (rb) bEnd.title = "Devi prima riequilibrare una guarnigione di frontiera a 1 legione";
+    add(row(bEnd));
     return;
   }
 
