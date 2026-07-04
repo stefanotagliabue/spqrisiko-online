@@ -15,6 +15,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 
+import tempfile  # noqa: E402
+os.environ["SPQR_DATA_DIR"] = tempfile.mkdtemp(prefix="spqr-rooms-")
+
 from fastapi.testclient import TestClient  # noqa: E402
 import server  # noqa: E402
 

@@ -1,7 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Set, Any, Optional
+import asyncio
 import json
+import os
+import re
 import secrets
 import time
 import copy
@@ -10,6 +13,15 @@ import random
 from map_data import get_map
 
 app = FastAPI()
+
+# --- Persistenza su disco: un file JSON per stanza ---
+# SPQR_DATA_DIR permette ai test di usare una directory isolata
+DATA_DIR = os.environ.get("SPQR_DATA_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "rooms")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# il nome stanza diventa un nome di file: solo caratteri sicuri
+ROOM_RE = re.compile(r"^[A-Z0-9_-]{1,16}$")
 
 # --- Multiplayer rooms (connections) ---
 ROOMS: Dict[str, Set[WebSocket]] = {}
@@ -98,6 +110,61 @@ async def broadcast_json_async(room: str, payload: Dict[str, Any]) -> None:
         await peer.send_json(payload)
 
 
+def room_file(room: str) -> str:
+    return os.path.join(DATA_DIR, f"{room}.json")
+
+
+def save_room(room: str) -> None:
+    """Scrittura atomica dello stato della stanza (partite in corso).
+    LOBBY e GAME_OVER non vengono conservate: dopo un riavvio non servono."""
+    gs = GAMES.get(room)
+    if gs is None:
+        return
+    if gs["turn"]["phase"] in ("LOBBY", "GAME_OVER"):
+        delete_room_file(room)
+        return
+    tmp = room_file(room) + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"game": gs, "tokens": TOKENS.get(room, {}), "savedAt": now_ms()}, f)
+        os.replace(tmp, room_file(room))
+    except OSError:
+        pass  # il gioco continua anche se il disco fallisce
+
+
+def delete_room_file(room: str) -> None:
+    try:
+        os.remove(room_file(room))
+    except OSError:
+        pass
+
+
+def load_rooms() -> None:
+    """Ripristina all'avvio le partite salvate. Le connessioni non
+    sopravvivono al riavvio: tutti i giocatori partono disconnessi
+    e rientrano con playerId+token."""
+    for fn in os.listdir(DATA_DIR):
+        if not fn.endswith(".json"):
+            continue
+        room = fn[:-5]
+        if not ROOM_RE.match(room):
+            continue
+        try:
+            with open(room_file(room), "r", encoding="utf-8") as f:
+                data = json.load(f)
+            gs = data["game"]
+            if gs["turn"]["phase"] in ("LOBBY", "GAME_OVER"):
+                delete_room_file(room)
+                continue
+            for p in gs["players"]:
+                p["connected"] = False
+            GAMES[room] = gs
+            TOKENS[room] = data.get("tokens", {})
+            gs["log"].append({"t": now_ms(), "text": "Server restarted: game restored from disk"})
+        except (OSError, ValueError, KeyError):
+            continue  # file corrotto: lo si ignora senza bloccare l'avvio
+
+
 def state_view(gs: Dict[str, Any], viewer_id: str) -> Dict[str, Any]:
     """Vista personalizzata dello stato: le carte degli altri giocatori
     non vengono inviate (solo il conteggio in cardCount)."""
@@ -116,6 +183,7 @@ async def broadcast_state_async(room: str) -> None:
     gs = GAMES.get(room)
     if gs is None:
         return
+    save_room(room)  # ogni cambiamento di stato viene broadcastato: choke point ideale
     active = ROOMS.get(room, set())
     for pid, peer in list(PLAYER_WS.get(room, {}).items()):
         if peer not in active:
@@ -512,6 +580,11 @@ def get_map_debug():
 async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
     await ws.accept()
     room = room.upper()
+
+    if not ROOM_RE.match(room):
+        await ws.send_json({"type": "error", "error": "Invalid room code (use letters, digits, - or _, max 16)"})
+        await ws.close(code=4003)
+        return
 
     # create game state if missing
     if room not in GAMES:
@@ -1715,8 +1788,14 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                 p["connected"] = False
             add_log(room, f"{pname} disconnected (can rejoin)")
 
-        await broadcast_json_async(room, {"type": "leave", "room": room, "player": pname})
-        await broadcast_state_async(room)
+        # La notifica agli altri NON deve girare nel task di questo socket:
+        # alla chiusura il task viene cancellato e i send in corso andrebbero
+        # persi. Un task indipendente sul loop sopravvive alla cancellazione.
+        async def _notify_leave() -> None:
+            await broadcast_json_async(room, {"type": "leave", "room": room, "player": pname})
+            await broadcast_state_async(room)
+
+        asyncio.get_running_loop().create_task(_notify_leave())
 
         # la room muore solo se vuota E senza una partita in corso
         if len(ROOMS.get(room, set())) == 0 and gs["turn"]["phase"] in ("LOBBY", "GAME_OVER"):
@@ -1724,7 +1803,11 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
             GAMES.pop(room, None)
             TOKENS.pop(room, None)
             PLAYER_WS.pop(room, None)
+            delete_room_file(room)
 
+
+# ripristina le partite salvate prima di accettare connessioni
+load_rooms()
 
 # web client
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
