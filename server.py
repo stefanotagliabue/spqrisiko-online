@@ -17,6 +17,14 @@ ROOMS: Dict[str, Set[WebSocket]] = {}
 # --- Game state per room ---
 GAMES: Dict[str, Dict[str, Any]] = {}
 
+# --- Session tokens (MAI nel game state: verrebbero broadcastati a tutti) ---
+# room -> playerId -> token segreto per riconnettersi
+TOKENS: Dict[str, Dict[str, str]] = {}
+
+# --- Socket attivo per giocatore (per rimpiazzare connessioni stantie) ---
+# room -> playerId -> WebSocket
+PLAYER_WS: Dict[str, Dict[str, WebSocket]] = {}
+
 PHASES = [
     "LOBBY",
     "SETUP",
@@ -475,35 +483,66 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
     await ws.accept()
     room = room.upper()
 
-    # create room connection set
-    if room not in ROOMS:
-        ROOMS[room] = set()
-    ROOMS[room].add(ws)
-
     # create game state if missing
     if room not in GAMES:
         GAMES[room] = new_game_state(room)
+    gs = GAMES[room]
 
-    # register player
-    player_id = secrets.token_hex(4)
-    player = {
-        "id": player_id,
-        "name": player_name,
-        "ready": False,
-        "color": None,
-        "score": 0,
-        "cards": [],
-        "eliminated": False,
-    }
-    GAMES[room]["players"].append(player)
-    add_log(room, f"{player_name} joined")
+    # --- resume di una sessione esistente (riconnessione) ---
+    req_pid = ws.query_params.get("playerId")
+    req_token = ws.query_params.get("token")
 
-    # welcome to this client
-    await ws.send_json({"type": "welcome", "room": room, "playerId": player_id})
+    player = None
+    if req_pid and req_token and TOKENS.get(room, {}).get(req_pid) == req_token:
+        player = get_player_by_id(gs, req_pid)
+
+    if player is None:
+        # nuova registrazione: possibile solo in LOBBY
+        if gs["turn"]["phase"] != "LOBBY":
+            await ws.send_json({"type": "error", "error": "Game already started: cannot join without a valid session"})
+            await ws.close(code=4001)
+            return
+
+        player_id = secrets.token_hex(4)
+        token = secrets.token_hex(16)
+        TOKENS.setdefault(room, {})[player_id] = token
+        player = {
+            "id": player_id,
+            "name": player_name,
+            "ready": False,
+            "color": None,
+            "score": 0,
+            "cards": [],
+            "eliminated": False,
+            "connected": True,
+        }
+        gs["players"].append(player)
+        add_log(room, f"{player_name} joined")
+    else:
+        # riattacco: chiudi l'eventuale socket precedente rimasto appeso
+        player_id = player["id"]
+        token = TOKENS[room][player_id]
+        old_ws = PLAYER_WS.get(room, {}).get(player_id)
+        if old_ws is not None and old_ws is not ws:
+            ROOMS.get(room, set()).discard(old_ws)
+            try:
+                await old_ws.close(code=4002)
+            except Exception:
+                pass
+        player["connected"] = True
+        add_log(room, f"{player['name']} reconnected")
+
+    if room not in ROOMS:
+        ROOMS[room] = set()
+    ROOMS[room].add(ws)
+    PLAYER_WS.setdefault(room, {})[player_id] = ws
+
+    # welcome to this client (il token serve al client per riconnettersi)
+    await ws.send_json({"type": "welcome", "room": room, "playerId": player_id, "token": token})
 
     # notify everyone + send state snapshot
-    await broadcast_json_async(room, {"type": "join", "room": room, "player": player_name})
-    await broadcast_json_async(room, {"type": "state", "room": room, "state": GAMES[room]})
+    await broadcast_json_async(room, {"type": "join", "room": room, "player": player["name"]})
+    await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
 
     try:
         while True:
@@ -553,6 +592,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                             "score": 0,
                             "cards": [],
                             "eliminated": False,
+                            "connected": p.get("connected", True),
                         })
 
                     add_log(room, "Game reset -> LOBBY")
@@ -1568,19 +1608,41 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                 continue
 
     except WebSocketDisconnect:
-        ROOMS[room].discard(ws)
+        ROOMS.get(room, set()).discard(ws)
 
-        # remove player from game state by id
-        gs_players = GAMES[room]["players"]
-        GAMES[room]["players"] = [p for p in gs_players if p["id"] != player_id]
-        add_log(room, f"{player_name} left")
+        # se questo socket è stato rimpiazzato da una riconnessione più
+        # recente, non toccare lo stato del giocatore
+        if PLAYER_WS.get(room, {}).get(player_id) is not ws:
+            return
+        PLAYER_WS[room].pop(player_id, None)
 
-        await broadcast_json_async(room, {"type": "leave", "room": room, "player": player_name})
-        await broadcast_json_async(room, {"type": "state", "room": room, "state": GAMES[room]})
+        gs = GAMES.get(room)
+        if gs is None:
+            return
 
-        if len(ROOMS[room]) == 0:
-            del ROOMS[room]
-            del GAMES[room]
+        p = get_player_by_id(gs, player_id)
+        pname = p["name"] if p else player_name
+
+        if gs["turn"]["phase"] == "LOBBY":
+            # in lobby chi esce, esce davvero
+            gs["players"] = [x for x in gs["players"] if x["id"] != player_id]
+            TOKENS.get(room, {}).pop(player_id, None)
+            add_log(room, f"{pname} left")
+        else:
+            # a partita iniziata resta in gioco: può riconnettersi col token
+            if p:
+                p["connected"] = False
+            add_log(room, f"{pname} disconnected (can rejoin)")
+
+        await broadcast_json_async(room, {"type": "leave", "room": room, "player": pname})
+        await broadcast_json_async(room, {"type": "state", "room": room, "state": gs})
+
+        # la room muore solo se vuota E senza una partita in corso
+        if len(ROOMS.get(room, set())) == 0 and gs["turn"]["phase"] in ("LOBBY", "GAME_OVER"):
+            ROOMS.pop(room, None)
+            GAMES.pop(room, None)
+            TOKENS.pop(room, None)
+            PLAYER_WS.pop(room, None)
 
 
 # web client
