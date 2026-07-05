@@ -208,7 +208,7 @@
 
 <script>
 "use strict";
-const CLIENT_VERSION = "index-v6-dice";
+const CLIENT_VERSION = "index-v7-playtest-fixes";
 
 /* ============ coordinate mappa (centri tile) ============ */
 const PROV_XY = {
@@ -234,7 +234,9 @@ const SEA_XY = {
 const TILE_W = 86, TILE_H = 40, SEA_RX = 46, SEA_RY = 22;
 
 const COLOR_HEX = {
-  RED:"#c0483e", BLUE:"#3f6fbf", YELLOW:"#c29a2e", GREEN:"#3f9159", BLACK:"#565664",
+  // BLACK deve restare distinguibile dal grigio delle province libere (--free)
+  RED:"#c0483e", BLUE:"#3f6fbf", YELLOW:"#c29a2e", GREEN:"#3f9159", BLACK:"#1e1e26",
+  GRAY:"#7d8590", // colore unico dei neutrali (regola casa)
 };
 const CARD_ICON = { LEGIONARIO:"🗡️", TRIREME:"⛵", VESSILLO:"🚩", ARENA:"🏛️" };
 
@@ -471,7 +473,10 @@ function computeClickables() {
     // garrison-first: se il riequilibrio è obbligato, come destinazione evidenzia solo i deficit
     const mustFix = rebalanceMove() ? new Set(garrisonDeficits()) : null;
     if (!ui.sel.from) all.filter(id => isMine(id) && prov(id).legions > 1).forEach(id => provs.add(id));
-    else all.filter(id => isMine(id) && id !== ui.sel.from && (!mustFix || mustFix.has(id))).forEach(id => provs.add(id));
+    else {
+      all.filter(id => isMine(id) && id !== ui.sel.from && (!mustFix || mustFix.has(id))).forEach(id => provs.add(id));
+      provs.add(ui.sel.from); // ri-cliccabile per deselezionare
+    }
   }
   return { provs, seas };
 }
@@ -507,7 +512,8 @@ function onProvClick(id) {
     else if (isEnemy(id) && ui.sel.from && prov(ui.sel.from).adj_land.includes(id)) ui.sel.to = id;
   }
   else if (ph === "STRATEGIC_MOVE" && isMine(id)) {
-    if (!ui.sel.from || id === ui.sel.from) { ui.sel.from = id; ui.sel.to = null; }
+    if (id === ui.sel.from) { ui.sel.from = null; ui.sel.to = null; }   // ri-click: deseleziona
+    else if (!ui.sel.from) { ui.sel.from = id; ui.sel.to = null; }
     else ui.sel.to = id;
   }
   render();
@@ -609,6 +615,8 @@ function renderPlayers(st) {
     if (st.turn.phase === "LOBBY") bits.push(p.ready ? "✅ pronto" : "⬜");
     else {
       bits.push(`⭐${p.score}`);
+      const nProv = Object.values(st.map.provinces).filter(pr => pr.owner === p.color).length;
+      bits.push(`🏰${nProv}`);
       bits.push(`🃏${p.cardCount !== undefined ? p.cardCount : (p.cards||[]).length}`);
       if (p.eliminated) bits.push("💀");
     }
@@ -616,6 +624,17 @@ function renderPlayers(st) {
     row.append(el("span", { class:"inf" }, bits.join(" ")));
     box.append(row);
   });
+  // i neutrali compaiono come riga finché possiedono province
+  if (st.turn.phase !== "LOBBY") {
+    const neutralProvs = Object.values(st.map.provinces).filter(pr => pr.owner && pr.owner.startsWith("NEUTRAL_"));
+    if (neutralProvs.length > 0) {
+      const row = el("div", { class:"pRow" });
+      row.append(el("div", { class:"dot", style:`background:${ownerFill(neutralProvs[0].owner)}` }));
+      row.append(el("span", { class:"nm", style:"color:var(--muted)" }, "Neutrali"));
+      row.append(el("span", { class:"inf" }, `🏰${neutralProvs.length}`));
+      box.append(row);
+    }
+  }
   if (st.turn.phase !== "LOBBY")
     box.append(el("div", { class:"inf", style:"font-size:11px;color:var(--muted);margin-top:6px" },
       `Obiettivo: ${st.settings.targetScore} punti`));
@@ -741,7 +760,9 @@ function renderActions(st) {
         if (syms.includes("ARENA")) {
           const s = el("select", { oninput: e => { ui.vals.pcProv = e.target.value; } });
           s.append(el("option", { value:"" }, "— centro di potere: nessuno —"));
-          Object.keys(st.map.provinces).filter(id => isMine(id) && !prov(id).power_center)
+          // §16.4: niente centri adiacenti a un altro centro (il server rifiuterebbe l'intero tris)
+          Object.keys(st.map.provinces).filter(id => isMine(id) && !prov(id).power_center
+              && !prov(id).adj_land.some(n => prov(n).power_center))
             .forEach(id => {
               const o = el("option", { value:id }, prov(id).name);
               if (ui.vals.pcProv === id) o.selected = true;
@@ -750,13 +771,18 @@ function renderActions(st) {
           add(row(s));
         }
         add(row(actionBtn("Gioca tris", () => {
+          if (ui.tris.length !== 3) return; // doppio click: il primo invio ha già azzerato la selezione
           const payload = { cards: [...ui.tris] };
           const seas = [];
           for (let k = 0; k < nTri; k++) if (ui.vals["triSea"+k]) seas.push(ui.vals["triSea"+k]);
           if (seas.length) payload.triremeSeas = seas;
-          if (ui.vals.pcProv) payload.powerCenterProvince = ui.vals.pcProv;
+          // il centro di potere viene inviato solo se il tris corrente contiene un'arena:
+          // ui.vals.pcProv può restare sporco da un tentativo precedente fallito
+          if (syms.includes("ARENA") && ui.vals.pcProv) payload.powerCenterProvince = ui.vals.pcProv;
           sendCmd("play_tris", payload);
           ui.tris = [];
+          ui.vals.pcProv = "";
+          for (let k = 0; k < nTri; k++) delete ui.vals["triSea"+k];
         }, "primary")));
       }
     }
@@ -775,7 +801,7 @@ function renderActions(st) {
     if (ui.mode === "t2l") add(hint(ui.sel.sea
       ? `Mare: ${sea(ui.sel.sea).name} → ora clicca una tua provincia adiacente.`
       : "Clicca un mare con una tua trireme."));
-    add(row(actionBtn("Fine fase navale", () => sendCmd("end_phase"))));
+    add(row(actionBtn("Fine rinforzi navali", () => sendCmd("end_phase"))));
     return;
   }
 
@@ -883,7 +909,8 @@ function renderActions(st) {
       add(hint(`⚠️ Riequilibrio obbligatorio: porta a 2 una guarnigione di frontiera ` +
         `(${defs.map(id => prov(id).name).join(", ")}), es. da ${prov(rb.from).name} a ${prov(rb.to).name}.`));
     }
-    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
+    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`),
+      row(actionBtn("Annulla selezione", () => { ui.sel = {}; render(); })));
     if (ui.sel.from && ui.sel.to) {
       const maxN = prov(ui.sel.from).legions - 1;
       const badTarget = rb && !defs.includes(ui.sel.to);

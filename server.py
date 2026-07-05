@@ -16,7 +16,7 @@ from map_data import get_map
 # usare i nomi come attributi di questo modulo, es. server.GAMES.
 from spqr.state import (  # noqa: F401
     GAMES, ROOMS, TOKENS, PLAYER_WS, ROOM_RE,
-    PHASES, PLAYER_COLORS, MAX_POWER_CENTERS, MAX_PLAYERS, NO_ELIMINATION_ROUNDS,
+    PHASES, PLAYER_COLORS, NEUTRAL_COLOR, MAX_POWER_CENTERS, MAX_PLAYERS, NO_ELIMINATION_ROUNDS,
     now_ms, new_game_state, add_log, get_player_by_id,
     assign_colors, init_neutrals,
 )

@@ -41,6 +41,10 @@ PHASES = [
 
 PLAYER_COLORS = ["RED", "BLUE", "YELLOW", "GREEN", "BLACK"]
 
+# Regola casa: i neutrali usano un unico colore dedicato, mai quello di un
+# giocatore. Il numero di gruppi resta quello del regolamento.
+NEUTRAL_COLOR = "GRAY"
+
 MAX_POWER_CENTERS = 12   # §1.3
 MAX_PLAYERS = 5           # §2.6: si gioca sempre con 5 eserciti
 NO_ELIMINATION_ROUNDS = 4  # §18.4
@@ -118,27 +122,21 @@ def assign_colors(gs: Dict[str, Any]) -> None:
 
 def init_neutrals(gs: Dict[str, Any]) -> None:
     """
-    Neutrali come da regolamento:
-    - si usano sempre 5 colori; quelli non usati diventano neutrali
-    - 3 giocatori: 2 colori neutrali -> per ciascuno 9 gruppi da 3 (tot 18 gruppi)
-    - 4 giocatori: 1 colore neutrale -> 3 in ITALIA + 8 gruppi da 3
+    Quantita' di neutrali come da regolamento (che userebbe i colori non
+    assegnati), ma con un unico colore neutro per tutti (regola casa):
+    - 3 giocatori: 18 gruppi da 3 (nel regolamento: 9 per ciascuno dei 2 colori)
+    - 4 giocatori: 3 in ITALIA + 8 gruppi da 3
     """
-    used = {p["color"] for p in gs["players"]}
-    unused = [c for c in PLAYER_COLORS if c not in used]
-
     gs["setup"]["neutralPool"] = []
     gs["setup"]["neutralFixed"] = []
 
     n_players = len(gs["players"])
 
     if n_players == 3:
-        for c in unused:
-            for _ in range(9):
-                gs["setup"]["neutralPool"].append({"color": c, "size": 3})
+        for _ in range(18):
+            gs["setup"]["neutralPool"].append({"color": NEUTRAL_COLOR, "size": 3})
 
     elif n_players == 4:
-        if len(unused) == 1:
-            c = unused[0]
-            gs["setup"]["neutralFixed"].append({"provinceId": "ITALIA", "color": c, "size": 3})
-            for _ in range(8):
-                gs["setup"]["neutralPool"].append({"color": c, "size": 3})
+        gs["setup"]["neutralFixed"].append({"provinceId": "ITALIA", "color": NEUTRAL_COLOR, "size": 3})
+        for _ in range(8):
+            gs["setup"]["neutralPool"].append({"color": NEUTRAL_COLOR, "size": 3})

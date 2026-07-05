@@ -8,10 +8,14 @@ Uso:  python smoke_test.py   (dalla cartella del progetto, o con PYTHONPATH impo
 """
 import sys
 import os
+import random
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
+
+# dadi deterministici: senza seed alcuni check condizionali possono saltare
+random.seed(int(os.environ.get("SPQR_TEST_SEED", "4")))
 
 import tempfile  # noqa: E402
 os.environ["SPQR_DATA_DIR"] = tempfile.mkdtemp(prefix="spqr-rooms-")
