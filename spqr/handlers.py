@@ -366,11 +366,12 @@ def handle_play_tris(room: str, player_id: str, payload: dict) -> Optional[str]:
 
 
 def handle_trireme_to_legions(room: str, player_id: str, payload: dict) -> Optional[str]:
-    """§6.6: durante i rinforzi terrestri, una trireme può essere
-    convertita in 2 legioni in una provincia adiacente al mare."""
+    """§6.6: durante i rinforzi, una trireme può essere convertita in
+    2 legioni in una provincia adiacente al mare. Concesso in entrambe le
+    fasi di rinforzo: la UI le presenta come un'unica fase."""
     gs = GAMES[room]
-    if gs["turn"]["phase"] != "REINFORCE_LAND":
-        return "Not in REINFORCE_LAND"
+    if gs["turn"]["phase"] not in ("REINFORCE_LAND", "REINFORCE_NAVAL"):
+        return "Not in a reinforcement phase"
 
     turn_player_id = gs["players"][gs["turn"]["turnIndex"]]["id"]
     if turn_player_id != player_id:
@@ -402,10 +403,12 @@ def handle_trireme_to_legions(room: str, player_id: str, payload: dict) -> Optio
 
 
 def handle_buy_trireme(room: str, player_id: str, payload: dict) -> Optional[str]:
-    """§7.1-7.3: 3 legioni da una provincia costiera -> 1 trireme."""
+    """§7.1-7.3: 3 legioni da una provincia costiera -> 1 trireme.
+    Concesso in entrambe le fasi di rinforzo: la UI le presenta come
+    un'unica fase."""
     gs = GAMES[room]
-    if gs["turn"]["phase"] != "REINFORCE_NAVAL":
-        return "Not in REINFORCE_NAVAL"
+    if gs["turn"]["phase"] not in ("REINFORCE_LAND", "REINFORCE_NAVAL"):
+        return "Not in a reinforcement phase"
 
     turn_player_id = gs["players"][gs["turn"]["turnIndex"]]["id"]
     if turn_player_id != player_id:
