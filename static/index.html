@@ -23,10 +23,16 @@
       --free: #3a4a5e;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
     body {
       margin: 0; font-family: system-ui, sans-serif;
       background: var(--bg); color: var(--text);
-      height: 100vh; display: flex; flex-direction: column;
+      /* 100vh sugli smartphone assume la viewport "piena" (barra del browser
+         nascosta): se la barra e' visibile il contenuto sborda e appare uno
+         scroll che la rivela di nuovo. 100dvh segue l'altezza visibile reale;
+         il fallback 100vh resta per i browser che non la supportano. */
+      height: 100vh; height: 100dvh;
+      display: flex; flex-direction: column;
     }
     header {
       display: flex; align-items: center; gap: 14px;
@@ -123,6 +129,19 @@
       max-width: 70vw;
     }
     #toast.on { opacity: 1; }
+    #a2hsHint {
+      position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom));
+      transform: translateX(-50%); display: none; align-items: center; gap: 10px;
+      background: #1c2636; border: 1px solid var(--accent); color: var(--text);
+      border-radius: 10px; padding: 10px 12px; font-size: 13px; z-index: 60;
+      max-width: min(92vw, 420px); box-shadow: 0 4px 18px rgba(0,0,0,.4);
+    }
+    #a2hsHint.on { display: flex; }
+    #a2hsHint b { color: var(--accent); }
+    #a2hsHintClose {
+      flex: none; background: none; border: none; color: var(--muted);
+      font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 4px;
+    }
     #banner {
       position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
       background: rgba(10,14,20,.82); z-index: 40; flex-direction: column; gap: 16px;
@@ -138,19 +157,40 @@
     .prov text { pointer-events: none; }
     .prov .nm { font-size: 9.5px; fill: #f2f5fa; }
     .prov .lg { font-size: 13px; font-weight: 700; fill: #fff; }
-    .prov.clickable rect { stroke: #cfd8e6; stroke-width: 1.4; }
-    .prov.clickable:hover rect { stroke: #fff; stroke-width: 2.2; }
-    .prov.selA rect { stroke: var(--accent); stroke-width: 3; }
-    .prov.selB rect { stroke: #7fd4ff; stroke-width: 3; }
+    /* bersagli legali: contorno pulsante per farli "chiamare" il tocco.
+       colore diverso per un proprio bersaglio (selezionabile/amico) rispetto
+       a un bersaglio nemico (attacco) */
+    @keyframes clickPulse {
+      0%, 100% { stroke-opacity: .5; }
+      50% { stroke-opacity: 1; }
+    }
+    .prov.clickable rect {
+      stroke: var(--accent); stroke-width: 2.2;
+      animation: clickPulse 1.3s ease-in-out infinite;
+    }
+    .prov.clickable.atkTarget rect {
+      stroke: #ff5f5f;
+      animation: clickPulse 1.1s ease-in-out infinite;
+    }
+    .prov.clickable:hover rect { stroke: #fff; stroke-width: 2.6; animation: none; }
+    .prov.selA rect { stroke: var(--accent); stroke-width: 3; animation: none; }
+    .prov.selB rect { stroke: #7fd4ff; stroke-width: 3; animation: none; }
     .prov.deficit rect { stroke: #ff5252; stroke-width: 3; stroke-dasharray: 5 3; }
     .prov.neutralOwner rect { stroke-dasharray: 4 2; }
     .sea ellipse { fill: rgba(80,140,210,.16); stroke: #3d5f8a; stroke-width: 1.2; cursor: pointer; }
     .sea text { pointer-events: none; }
     .sea .nm { font-size: 9px; fill: #7fa8d4; font-style: italic; }
-    .sea.clickable ellipse { stroke: #9fc5ef; stroke-width: 1.8; }
-    .sea.clickable:hover ellipse { stroke: #fff; }
-    .sea.selA ellipse { stroke: var(--accent); stroke-width: 3; }
-    .sea.selB ellipse { stroke: #7fd4ff; stroke-width: 3; }
+    .sea.clickable ellipse {
+      stroke: #9fc5ef; stroke-width: 2.2;
+      animation: clickPulse 1.3s ease-in-out infinite;
+    }
+    .sea.clickable.atkTarget ellipse {
+      stroke: #ff5f5f;
+      animation: clickPulse 1.1s ease-in-out infinite;
+    }
+    .sea.clickable:hover ellipse { stroke: #fff; animation: none; }
+    .sea.selA ellipse { stroke: var(--accent); stroke-width: 3; animation: none; }
+    .sea.selB ellipse { stroke: #7fd4ff; stroke-width: 3; animation: none; }
     .edge { stroke: #2c3c55; stroke-width: 1.1; }
     .pcStar { font-size: 13px; pointer-events: none; }
 
@@ -165,6 +205,21 @@
       width: 40px; height: 40px; padding: 0; font-size: 20px; border-radius: 10px;
       background: rgba(26,36,52,.9);
     }
+
+    /* indicatore di fase/turno minimale sovrapposto alla mappa: l'occhio non
+       deve staccarsi dalla mappa per sapere "che fase è" o di chi è il turno */
+    #mapHud {
+      position: absolute; left: 8px; top: 8px; z-index: 5; pointer-events: none;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+      max-width: 62%;
+    }
+    #mapHud .chip {
+      background: rgba(16,23,34,.82); border-color: var(--line);
+      backdrop-filter: blur(2px);
+    }
+    #mapHud .turnLine { display: flex; align-items: center; gap: 6px; }
+    #mapHud .turnLine .dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 10px; }
+    #mapHud .turnLine.mine .chip { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 
     /* slider e bottoni segmentati (touch-friendly) */
     .sliderRow { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
@@ -190,7 +245,7 @@
     }
     #fabL { position: fixed; left: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); display: none; gap: 10px; z-index: 50; }
     #fabFs { position: fixed; right: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); display: none; z-index: 50; }
-    #sheetToggle { display: none; }
+    #actionsTab { display: none; }
 
     /* badge punti vittoria correnti nel pannello giocatori */
     .vpBadges { font-size: 11px; color: var(--accent); margin: 0 0 4px 20px; }
@@ -203,6 +258,15 @@
       max-width: 92vw; display: none;
     }
     #combatPop.on { display: block; }
+
+    /* menu contestuale su pressione prolungata di una provincia/mare */
+    #tileMenu {
+      position: fixed; z-index: 55; display: none; flex-direction: column; gap: 4px;
+      background: var(--panel); border: 1px solid var(--accent); border-radius: 10px;
+      padding: 6px; box-shadow: 0 8px 26px rgba(0,0,0,.6); max-width: 80vw;
+    }
+    #tileMenu.on { display: flex; }
+    #tileMenu button { white-space: nowrap; text-align: left; }
 
     /* layout telefono: mappa a tutto schermo, pannelli a comparsa
        (vale anche per telefoni orizzontali larghi: schermo basso = telefono) */
@@ -224,24 +288,29 @@
       aside { display: contents; }
       aside section { background: var(--panel); }
 
-      /* azioni = foglio richiudibile ancorato in basso */
-      #secActions {
-        position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      /* azioni: overlay a comparsa come carte/giocatori, niente più lembo
+         visibile quando è chiuso: o c'è o non c'è */
+      #secActions, #secCards, #secPlayers, #secCombat, #secLog { display: none; }
+      #secActions.open {
+        display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 47;
         border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
-        max-height: 46vh; overflow-y: auto;
+        max-height: 50vh; overflow-y: auto;
         padding: 4px 14px calc(74px + env(safe-area-inset-bottom));
         box-shadow: 0 -8px 28px rgba(0,0,0,.55);
-        transition: transform .2s ease;
       }
-      #secActions.min { transform: translateY(calc(100% - 44px)); overflow: hidden; }
-      #sheetToggle {
-        display: block; width: 100%; padding: 4px 0 6px; margin: 0 0 2px;
-        background: none; border: none; color: var(--muted); font-size: 16px; line-height: 1;
+
+      #actionsTab {
+        display: block; position: fixed; left: 50%; transform: translateX(-50%);
+        bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 48;
+        transition: bottom .2s ease;
+        padding: 9px 18px; border-radius: 20px; font-size: 14px;
+        background: rgba(26,36,52,.94); box-shadow: 0 3px 14px rgba(0,0,0,.45);
       }
-      #secActions h3 { display: none; }
+      /* col foglio azioni aperto la tab sale sopra il suo bordo superiore:
+         resta sempre raggiungibile per richiuderlo */
+      #actionsTab.raised { bottom: calc(50vh + 8px); }
 
       /* carte e giocatori: pannelli a comparsa dai bottoni in basso a sinistra */
-      #secCards, #secPlayers, #secCombat, #secLog { display: none; }
       #secCards.open, #secPlayers.open {
         display: block; position: fixed; left: 8px; right: 8px;
         bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 45;
@@ -254,7 +323,7 @@
     /* telefono orizzontale (fullscreen): azioni come cassetto a destra,
        la mappa tiene tutta la larghezza */
     @media (max-height: 500px) {
-      #secActions {
+      #secActions.open {
         left: auto; right: 0; width: min(390px, 48vw);
         max-height: 100vh; border-radius: 14px 0 0 0;
         border-left: 1px solid var(--line);
@@ -267,9 +336,15 @@
       }
       /* zoom in alto a sinistra: a destra c'è il cassetto azioni */
       #mapCtl { top: 8px; right: auto; left: 8px; flex-direction: row; }
+      /* l'hud di fase/turno scende sotto la riga di zoom, che qui è a sinistra */
+      #mapHud { top: 56px; max-width: 50%; }
       /* fullscreen accanto agli altri bottoni: il cassetto occupa l'angolo destro */
       #fabFs { right: auto; left: 140px; }
       #combatPop { top: 8%; }
+      /* la tab azioni si sposta dopo carte/giocatori/fullscreen (a sinistra
+         c'è il cassetto è sul lato destro, non la copre mai) */
+      #actionsTab { left: 200px; transform: none; }
+      #actionsTab.raised { bottom: calc(10px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -299,6 +374,7 @@
   <div id="gameScreen">
     <div id="mapWrap">
       <svg id="map" viewBox="0 0 1240 700" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="mapHud"></div>
       <div id="mapCtl">
         <button id="zoomIn" title="Zoom avanti">＋</button>
         <button id="zoomOut" title="Zoom indietro">−</button>
@@ -311,7 +387,6 @@
         <div id="playersBox"></div>
       </section>
       <section id="secActions">
-        <button id="sheetToggle" title="Mostra/nascondi azioni">▾ ▴</button>
         <h3>Azioni</h3>
         <div id="actions"></div>
       </section>
@@ -330,6 +405,12 @@
     </aside>
   </div>
 
+  <div id="tileMenu"></div>
+
+  <!-- tab fissa (telefono): mostra/nasconde il foglio azioni senza lasciarne
+       un lembo visibile sopra la mappa quando è chiuso -->
+  <button id="actionsTab" title="Mostra/nascondi azioni">⚔️ Azioni ▾</button>
+
   <!-- bottoni flottanti (telefono): carte, giocatori, fullscreen -->
   <div id="fabL">
     <button class="fab" id="fabCards" title="Le tue carte">🃏</button>
@@ -339,6 +420,7 @@
   <div id="combatPop"></div>
 
   <div id="toast"></div>
+  <div id="a2hsHint"><span>Per il vero schermo intero (niente barra/schede del browser): tocca <b>Condividi</b> ⬆️ → <b>"Aggiungi a Home"</b>.</span><button id="a2hsHintClose" title="Chiudi">✕</button></div>
   <div id="banner">
     <div class="big" id="bannerText"></div>
     <button class="primary" id="bannerReset">Nuova partita</button>
@@ -526,12 +608,48 @@ function applyVB() {
   $("map").setAttribute("viewBox", `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
 }
 
+const MOBILE_MQ = window.matchMedia("(max-width: 820px), (max-height: 500px)");
+
+function containerAspect() {
+  // il "cover" a schermo intero vale solo nel layout telefono (stesso
+  // breakpoint del CSS mobile); su desktop resta l'aspect fisso della mappa,
+  // cosi' il comportamento con mappa intera visibile e bande laterali non
+  // cambia
+  if (!MOBILE_MQ.matches) return VB_FULL.w / VB_FULL.h;
+  const r = $("mapWrap").getBoundingClientRect();
+  return (r.width > 0 && r.height > 0) ? r.width / r.height : VB_FULL.w / VB_FULL.h;
+}
+
 function clampVB() {
-  const M = 120; // margine oltre i bordi
-  VB.w = Math.max(200, Math.min(VB_FULL.w, VB.w));
-  VB.h = VB.w * VB_FULL.h / VB_FULL.w;
-  VB.x = Math.max(VB_FULL.x - M, Math.min(VB_FULL.x + VB_FULL.w + M - VB.w, VB.x));
-  VB.y = Math.max(VB_FULL.y - M, Math.min(VB_FULL.y + VB_FULL.h + M - VB.h, VB.y));
+  const M = 260; // margine oltre i bordi, per lo zoom indietro estremo
+  const AR = containerAspect();
+  // la viewBox segue sempre l'aspect ratio reale del contenitore (schermo
+  // verticale incluso): niente lettera-boxing, la mappa riempie lo schermo
+  // e si può scorrere/zoomare restando entro un margine dai bordi. Il limite
+  // di zoom indietro copre l'intera mappa (puo' lasciare un bordo vuoto se
+  // l'aspect e' molto diverso da quello della mappa: e' una scelta esplicita
+  // di zoom, non la vista di default).
+  const maxW = Math.max(VB_FULL.w, VB_FULL.h * AR);
+  VB.w = Math.max(200, Math.min(maxW, VB.w));
+  VB.h = VB.w / AR;
+
+  const xLo = VB_FULL.x - M, xHi = VB_FULL.x + VB_FULL.w + M - VB.w;
+  VB.x = xHi >= xLo ? Math.max(xLo, Math.min(xHi, VB.x)) : VB_FULL.x + (VB_FULL.w - VB.w) / 2;
+  const yLo = VB_FULL.y - M, yHi = VB_FULL.y + VB_FULL.h + M - VB.h;
+  VB.y = yHi >= yLo ? Math.max(yLo, Math.min(yHi, VB.y)) : VB_FULL.y + (VB_FULL.h - VB.h) / 2;
+}
+
+function fitVBDefault() {
+  // vista di default: la mappa riempie lo schermo senza bordi vuoti,
+  // ritagliando la dimensione in eccesso rispetto all'aspect del contenitore
+  // (l'utente può comunque zoomare indietro fino a vedere tutta la mappa,
+  // vedi clampVB)
+  const AR = containerAspect();
+  const w = Math.max(200, Math.min(VB_FULL.w, VB_FULL.h * AR));
+  VB.w = w;
+  VB.h = w / AR;
+  VB.x = VB_FULL.x + (VB_FULL.w - VB.w) / 2;
+  VB.y = VB_FULL.y + (VB_FULL.h - VB.h) / 2;
 }
 
 function svgCoords(clientX, clientY) {
@@ -552,12 +670,29 @@ function initMapGestures() {
   const svg = $("map");
   const pts = new Map(); // pointerId -> {x, y} (coordinate client)
   let moved = false, pinchDist = 0;
+  let longPressTimer = null;
+  const cancelLongPress = () => { clearTimeout(longPressTimer); longPressTimer = null; };
 
   svg.addEventListener("pointerdown", e => {
     try { svg.setPointerCapture(e.pointerId); } catch {}
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 1) moved = false;
+    if (pts.size === 1) {
+      moved = false;
+      cancelLongPress();
+      const g = e.target.closest(".prov, .sea");
+      if (g) {
+        const kind = g.classList.contains("prov") ? "prov" : "sea";
+        const id = g.id.slice(kind.length + 1);
+        const cx = e.clientX, cy = e.clientY;
+        longPressTimer = setTimeout(() => {
+          longPressTimer = null;
+          const items = tileMenuItemsFor(kind, id);
+          if (items.length) { dragSuppressClick = true; openTileMenu(cx, cy, items); }
+        }, 450);
+      }
+    }
     if (pts.size === 2) {
+      cancelLongPress();
       const [a, b] = [...pts.values()];
       pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
     }
@@ -572,6 +707,7 @@ function initMapGestures() {
       if (Math.abs(dx) + Math.abs(dy) > 2) {
         if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return; // tolleranza tap
         moved = true;
+        cancelLongPress();
         const r = svg.getBoundingClientRect();
         VB.x -= dx / r.width * VB.w;
         VB.y -= dy / r.height * VB.h;
@@ -590,6 +726,7 @@ function initMapGestures() {
   });
   const end = e => {
     pts.delete(e.pointerId);
+    cancelLongPress();
     if (pts.size === 0 && moved) dragSuppressClick = true;
   };
   svg.addEventListener("pointerup", end);
@@ -608,7 +745,10 @@ function initMapGestures() {
 
   $("zoomIn").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1 / 1.3);
   $("zoomOut").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1.3);
-  $("zoomReset").onclick = () => { Object.assign(VB, VB_FULL); applyVB(); };
+  $("zoomReset").onclick = () => { fitVBDefault(); applyVB(); };
+
+  window.addEventListener("resize", () => { clampVB(); applyVB(); });
+  window.addEventListener("orientationchange", () => { clampVB(); applyVB(); });
 }
 
 /* ============ helper di gioco ============ */
@@ -663,7 +803,15 @@ function resetUiIfNeeded(st) {
   // le due fasi di rinforzo sono un'unica schermata: non azzerare la UI nel passaggio
   const phase = ["REINFORCE_LAND", "REINFORCE_NAVAL"].includes(st.turn.phase) ? "REINFORCE" : st.turn.phase;
   const key = `${st.turn.round}|${st.turn.turnIndex}|${phase}`;
-  if (ui.key !== key) ui = freshUi(key);
+  if (ui.key !== key) {
+    ui = freshUi(key);
+    // nuova fase del proprio turno: apre da sola il foglio azioni (su
+    // telefono è chiuso di default) così non si perde nulla di richiesto;
+    // resta comunque richiudibile per vedere la mappa
+    if (st.turn.phase !== "LOBBY" && st.players[st.turn.turnIndex] && st.players[st.turn.turnIndex].id === myPlayerId) {
+      openSheet("secActions");
+    }
+  }
 }
 
 /* province/mare cliccabili nella fase corrente (per l'evidenziazione) */
@@ -720,6 +868,47 @@ function computeClickables() {
     }
   }
   return { provs, seas };
+}
+
+/* menu contestuale (pressione prolungata su una provincia/mare): scorciatoia
+   per azioni che altrimenti richiederebbero prima di attivare una "modalità"
+   dal foglio azioni (compra trireme, trireme -> legioni). Il tap normale
+   mantiene il suo significato di sempre (es. piazza rinforzo). */
+function tileMenuItemsFor(kind, id) {
+  const st = lastState;
+  if (!st || !isMyTurn()) return [];
+  const ph = st.turn.phase;
+  if (ph !== "REINFORCE_LAND" && ph !== "REINFORCE_NAVAL") return [];
+  const items = [];
+  if (kind === "prov") {
+    if (isMine(id) && prov(id).legions >= 4 && prov(id).adj_sea.length) {
+      items.push({ label: `🛒 Compra trireme da ${prov(id).name}`,
+        run: () => { ui.mode = "buy"; ui.sel = { prov: id }; render(); } });
+    }
+  } else if (kind === "sea") {
+    if (myTriremes(id) > 0) {
+      items.push({ label: `⚓→🗡 Converti trireme (${sea(id).name})`,
+        run: () => { ui.mode = "t2l"; ui.sel = { sea: id }; render(); } });
+    }
+  }
+  return items;
+}
+
+function closeTileMenu() { $("tileMenu").classList.remove("on"); }
+
+function openTileMenu(clientX, clientY, items) {
+  const box = $("tileMenu");
+  box.innerHTML = "";
+  items.forEach(it => box.append(el("button", {
+    onclick: () => { closeTileMenu(); it.run(); },
+  }, it.label)));
+  box.classList.add("on");
+  // posiziona vicino al tocco, restando dentro lo schermo
+  const w = box.offsetWidth || 200, h = box.offsetHeight || (items.length * 40 + 16);
+  const x = Math.max(6, Math.min(window.innerWidth - w - 6, clientX - w / 2));
+  const y = Math.max(6, Math.min(window.innerHeight - h - 6, clientY - h - 14));
+  box.style.left = `${x}px`;
+  box.style.top = `${y}px`;
 }
 
 /* ============ click sulla mappa ============ */
@@ -797,13 +986,16 @@ function render() {
   const st = lastState;
   if (!st) return;
   resetUiIfNeeded(st);
-  if (!mapBuilt) buildMap(st.map);
+  if (!mapBuilt) { buildMap(st.map); fitVBDefault(); applyVB(); }
 
   // header
   $("phaseChip").innerHTML = `round <b>${st.turn.round}</b> · <b>${st.turn.phase}</b>`;
   const tp = turnPlayer();
   $("turnChip").innerHTML = st.turn.phase === "LOBBY" ? "in attesa di giocatori"
     : (tp ? (tp.id === myPlayerId ? "⭐ tocca a te" : `turno di <b>${tp.name}</b>`) : "—");
+
+  // stesso contenuto, sovrapposto alla mappa: niente sguardi fuori dalla mappa
+  renderMapHud(st, tp);
 
   renderMapState(st);
   renderPlayers(st);
@@ -822,6 +1014,21 @@ function render() {
   }
 }
 
+function renderMapHud(st, tp) {
+  const box = $("mapHud");
+  box.innerHTML = "";
+  box.append(el("span", { class:"chip" }, `round ${st.turn.round} · ${st.turn.phase}`));
+  const mine = st.turn.phase !== "LOBBY" && tp && tp.id === myPlayerId;
+  const line = el("div", { class:"turnLine" + (mine ? " mine" : "") });
+  if (st.turn.phase !== "LOBBY" && tp && tp.color) {
+    line.append(el("div", { class:"dot", style:`background:${COLOR_HEX[tp.color] || "#555"}` }));
+  }
+  line.append(el("span", { class:"chip" },
+    st.turn.phase === "LOBBY" ? "in attesa di giocatori"
+      : (tp ? (mine ? "⭐ tocca a te" : `turno di ${tp.name}`) : "—")));
+  box.append(line);
+}
+
 function renderMapState(st) {
   const { provs: clkP, seas: clkS } = computeClickables();
   const defs = new Set(isMyTurn() && ["REINFORCE_LAND", "STRATEGIC_MOVE"].includes(st.turn.phase)
@@ -835,6 +1042,7 @@ function renderMapState(st) {
     g.querySelector(".pcStar").textContent = pr.power_center ? "★" : "";
     g.classList.toggle("neutralOwner", !!pr.owner && pr.owner.startsWith("NEUTRAL_"));
     g.classList.toggle("clickable", clkP.has(id));
+    g.classList.toggle("atkTarget", clkP.has(id) && isEnemy(id));
     g.classList.toggle("deficit", defs.has(id));
     g.classList.toggle("selA", [ui.sel.claim, ui.sel.from, ui.sel.prov].includes(id));
     g.classList.toggle("selB", [ui.sel.neutral, ui.sel.to, ui.trisPc].includes(id));
@@ -850,6 +1058,8 @@ function renderMapState(st) {
     const firstColor = Object.keys(t).find(c => t[c] > 0);
     txt.setAttribute("fill", firstColor ? (COLOR_HEX[firstColor] || "#cde") : "#cde");
     g.classList.toggle("clickable", clkS.has(id));
+    // in NAVAL_COMBAT ogni mare cliccabile è di per sé un bersaglio di combattimento
+    g.classList.toggle("atkTarget", clkS.has(id) && st.turn.phase === "NAVAL_COMBAT");
     g.classList.toggle("selA", [ui.sel.sea, ui.sel.fromSea].includes(id));
     g.classList.toggle("selB", ui.sel.toSea === id || ui.trisSeas.includes(id));
   }
@@ -1356,6 +1566,10 @@ function renderCards(st) {
       ui.trisSeas = []; ui.trisPc = null;
       if (ui.mode === "trisSea" || ui.mode === "trisPc") ui.mode = null;
       render();
+      // selezionate le 3 carte: passa da solo al foglio Azioni, dove
+      // compaiono i bonus tris (triremi/centro di potere) e "Gioca tris" -
+      // altrimenti restano nascosti dietro al pannello carte
+      if (ui.tris.length === 3) openSheet("secActions");
     };
     box.append(chip);
   });
@@ -1386,19 +1600,50 @@ $("btnDebug").onclick = () => { location.href = "/debug.html"; };
 $("room").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
 initMapGestures();
 
-/* pannelli a comparsa (telefono): carte e giocatori si escludono a vicenda */
-function toggleSheet(id) {
-  for (const s of ["secCards", "secPlayers"]) {
-    $(s).classList.toggle("open", s === id ? !$(s).classList.contains("open") : false);
+/* pannelli a comparsa (telefono): si escludono a vicenda */
+function openSheet(id) {
+  for (const s of ["secCards", "secPlayers", "secActions"]) {
+    $(s).classList.toggle("open", s === id);
   }
+  const actionsOpen = $("secActions").classList.contains("open");
+  $("actionsTab").textContent = actionsOpen ? "⚔️ Azioni ▴" : "⚔️ Azioni ▾";
+  $("actionsTab").classList.toggle("raised", actionsOpen);
+}
+function toggleSheet(id) {
+  openSheet($(id).classList.contains("open") ? null : id);
 }
 $("fabCards").onclick = () => toggleSheet("secCards");
 $("fabPlayers").onclick = () => toggleSheet("secPlayers");
-$("sheetToggle").onclick = () => $("secActions").classList.toggle("min");
+$("actionsTab").onclick = () => toggleSheet("secActions");
 $("combatPop").onclick = () => $("combatPop").classList.remove("on");
+// tocco altrove chiude il menu contestuale senza eseguire nulla
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest("#tileMenu")) closeTileMenu();
+});
 
-/* schermo intero (non disponibile su iPhone Safari: il bottone sparisce) */
-if (!document.documentElement.requestFullscreen) {
+/* schermo intero: su iOS (Safari, Chrome, ecc. — tutti girano su WebKit)
+   il Fullscreen API esiste ma non nasconde mai la barra indirizzi/schede
+   del browser per una pagina normale: è un limite del sistema, non della
+   pagina. L'unico modo per eliminarle davvero è "Aggiungi a Home" (usa il
+   manifest con display:fullscreen già configurato), quindi su iOS in tab
+   normale il bottone sparisce e mostriamo l'invito ad installarla. */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const standalone = window.navigator.standalone === true
+  || window.matchMedia("(display-mode: standalone)").matches
+  || window.matchMedia("(display-mode: fullscreen)").matches;
+
+if (isIOS) {
+  // installata da Home: il manifest la apre già a schermo intero, nulla da fare.
+  // in tab normale: il fullscreen "vero" non è ottenibile via JS, si nasconde il bottone.
+  $("fabFs").style.display = "none";
+  if (!standalone && !localStorage.getItem("spq_a2hs_hint_dismissed")) {
+    $("a2hsHint").classList.add("on");
+    $("a2hsHintClose").onclick = () => {
+      $("a2hsHint").classList.remove("on");
+      localStorage.setItem("spq_a2hs_hint_dismissed", "1");
+    };
+  }
+} else if (!document.documentElement.requestFullscreen) {
   $("fabFs").style.display = "none";
 } else {
   $("fabFs").onclick = async () => {
