@@ -149,14 +149,18 @@
     #banner.on { display: flex; }
     #banner .big { font-size: 42px; color: var(--accent); font-weight: 700; }
 
-    /* SVG */
-    .prov rect {
-      rx: 8; stroke: #0b111a; stroke-width: 1.2; cursor: pointer;
-      transition: stroke .12s;
+    /* SVG: pedine tonde (colore proprietario + legioni) sopra la plancia reale,
+       stile RISK II */
+    .prov circle {
+      stroke: #0b111a; stroke-width: 1.4; cursor: pointer;
+      fill-opacity: .95; transition: stroke .12s;
+      filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.55));
     }
     .prov text { pointer-events: none; }
-    .prov .nm { font-size: 9.5px; fill: #f2f5fa; }
-    .prov .lg { font-size: 13px; font-weight: 700; fill: #fff; }
+    .prov .lg {
+      font-size: 15px; font-weight: 700; fill: #fff;
+      stroke: #0b111a; stroke-width: .6px; paint-order: stroke;
+    }
     /* bersagli legali: contorno pulsante per farli "chiamare" il tocco.
        colore diverso per un proprio bersaglio (selezionabile/amico) rispetto
        a un bersaglio nemico (attacco) */
@@ -164,22 +168,27 @@
       0%, 100% { stroke-opacity: .5; }
       50% { stroke-opacity: 1; }
     }
-    .prov.clickable rect {
-      stroke: var(--accent); stroke-width: 2.2;
+    .prov.clickable circle {
+      stroke: var(--accent); stroke-width: 2.4;
       animation: clickPulse 1.3s ease-in-out infinite;
     }
-    .prov.clickable.atkTarget rect {
+    .prov.clickable.atkTarget circle {
       stroke: #ff5f5f;
       animation: clickPulse 1.1s ease-in-out infinite;
     }
-    .prov.clickable:hover rect { stroke: #fff; stroke-width: 2.6; animation: none; }
-    .prov.selA rect { stroke: var(--accent); stroke-width: 3; animation: none; }
-    .prov.selB rect { stroke: #7fd4ff; stroke-width: 3; animation: none; }
-    .prov.deficit rect { stroke: #ff5252; stroke-width: 3; stroke-dasharray: 5 3; }
-    .prov.neutralOwner rect { stroke-dasharray: 4 2; }
-    .sea ellipse { fill: rgba(80,140,210,.16); stroke: #3d5f8a; stroke-width: 1.2; cursor: pointer; }
+    .prov.clickable:hover circle { stroke: #fff; stroke-width: 2.8; animation: none; }
+    .prov.selA circle { stroke: var(--accent); stroke-width: 3; animation: none; }
+    .prov.selB circle { stroke: #7fd4ff; stroke-width: 3; animation: none; }
+    .prov.deficit circle { stroke: #ff5252; stroke-width: 3; stroke-dasharray: 5 3; }
+    .prov.neutralOwner circle { stroke-dasharray: 4 2; }
+    /* i mari sono gia' disegnati sulla plancia: l'ellisse serve solo da area
+       cliccabile (quasi invisibile) e da contorno quando e' un bersaglio */
+    .sea ellipse { fill: rgba(80,140,210,.02); stroke: none; cursor: pointer; }
     .sea text { pointer-events: none; }
-    .sea .nm { font-size: 9px; fill: #7fa8d4; font-style: italic; }
+    .sea .tri {
+      font-weight: 700; fill: #fff; stroke: #0b111a; stroke-width: .7px;
+      paint-order: stroke;
+    }
     .sea.clickable ellipse {
       stroke: #9fc5ef; stroke-width: 2.2;
       animation: clickPulse 1.3s ease-in-out infinite;
@@ -431,27 +440,28 @@
 const CLIENT_VERSION = "index-v9-map-first";
 
 /* ============ coordinate mappa (centri tile) ============ */
+/* coordinate tarate sulla plancia reale (static/map.jpg), viewBox 1240x700 */
 const PROV_XY = {
-  BRITANNIA:[250,70], GERMANIA_INFERIOR:[460,105], BELGICA:[355,150],
-  LUGDUNENSE:[300,225], RAETIA:[475,190], NORICUM:[570,195], PANNONIA:[668,200],
-  DACIA:[800,185], MOESIA:[792,262], AQUITANIA:[250,300], NARBONENSIS:[335,332],
-  CISALPINA:[470,272], ILLIRIA:[592,288], DALMAZIA:[668,300], THRACIA:[840,308],
-  GALICIA:[92,298], TERRACONENSIS:[188,372], LUSITANIA:[72,390], BAETICA:[140,462],
-  ITALIA:[540,372], CORSICA:[462,332], SARDINIA:[440,462], SICILIA:[550,515],
-  BALEARES:[282,442], EPIRUS:[652,378], MACEDONIA:[748,362], ACHAIA:[710,448],
-  CRETA:[778,548], ASIA:[888,400], BITHYNIA:[935,335], PONTO:[1032,305],
-  GALATIA:[972,368], CAPPADOCIA:[1066,380], CILICIA:[1002,448], CIPRO:[952,528],
-  SYRIA:[1098,458], JUDEA:[1088,548], ARABIA:[1178,548], ARMENIA:[1140,325],
-  MESOPOTAMIA:[1172,395], MAURETANIA:[150,558], NUMIDIA:[292,568], AFRICA:[432,582],
-  CYRENAICA:[648,628], AEGYPTUS:[925,638],
+  BRITANNIA:[130,60], GERMANIA_INFERIOR:[346,28], BELGICA:[280,144],
+  LUGDUNENSE:[303,218], RAETIA:[422,107], NORICUM:[524,97], PANNONIA:[710,117],
+  DACIA:[673,20], MOESIA:[769,77], AQUITANIA:[196,255], NARBONENSIS:[282,285],
+  CISALPINA:[434,224], ILLIRIA:[536,193], DALMAZIA:[610,150], THRACIA:[794,190],
+  GALICIA:[142,396], TERRACONENSIS:[196,469], LUSITANIA:[40,421], BAETICA:[146,521],
+  ITALIA:[467,288], CORSICA:[415,338], SARDINIA:[432,408], SICILIA:[572,449],
+  BALEARES:[279,472], EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
+  CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146], PONTO:[1084,67],
+  GALATIA:[975,200], CAPPADOCIA:[1089,123], CILICIA:[983,252], CIPRO:[1017,301],
+  SYRIA:[1118,343], JUDEA:[1104,428], ARABIA:[1187,420], ARMENIA:[1192,204],
+  MESOPOTAMIA:[1186,277], MAURETANIA:[307,619], NUMIDIA:[438,663], AFRICA:[489,562],
+  CYRENAICA:[839,635], AEGYPTUS:[1021,557],
 };
 const SEA_XY = {
-  BRITANNICUS:[340,90], CANTABRICUM:[165,235], IBERICUM:[48,500],
-  BALEARICUM:[215,505], SINUS_GALLICUS:[368,395], TYRRENUM:[512,428],
-  HADRIATICUM:[618,332], IONIUM:[655,495], AEGEUM:[800,445], CRETICUM:[895,585],
-  PONTUS_EUXINUS:[935,248], SYRTIS:[512,632],
+  BRITANNICUS:[120,140], CANTABRICUM:[100,290], IBERICUM:[40,600],
+  BALEARICUM:[350,540], SINUS_GALLICUS:[330,400], TYRRENUM:[470,400],
+  HADRIATICUM:[560,280], IONIUM:[700,470], AEGEUM:[810,320], CRETICUM:[980,420],
+  PONTUS_EUXINUS:[850,60], SYRTIS:[620,540],
 };
-const TILE_W = 86, TILE_H = 40, SEA_RX = 46, SEA_RY = 22;
+const PIP_R = 15, SEA_RX = 30, SEA_RY = 20;
 
 const COLOR_HEX = {
   // BLACK deve restare distinguibile dal grigio delle province libere (--free)
@@ -554,29 +564,22 @@ function svgEl(tag, attrs={}) {
 function buildMap(m) {
   const svg = $("map");
   svg.innerHTML = "";
-  const gEdges = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g");
-  svg.append(gEdges, gSeas, gProv);
+  const gBg = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g");
+  svg.append(gBg, gSeas, gProv);
 
-  // adiacenze terrestri (linee sotto i tile)
-  const seen = new Set();
-  for (const [id, pr] of Object.entries(m.provinces)) {
-    for (const other of pr.adj_land) {
-      const key = [id, other].sort().join("|");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const [x1,y1] = PROV_XY[id] || [0,0], [x2,y2] = PROV_XY[other] || [0,0];
-      gEdges.append(svgEl("line", { class:"edge", x1, y1, x2, y2 }));
-    }
-  }
+  // sfondo: la plancia reale (nomi e confini gia' stampati sull'immagine)
+  gBg.append(svgEl("image", {
+    href: "/map.jpg", x:0, y:0, width:VB_FULL.w, height:VB_FULL.h,
+    preserveAspectRatio: "none",
+  }));
 
+  // i nomi/rotte sono gia' sulla mappa: sopra mettiamo solo i "gettoni"
+  // (colore proprietario + numero legioni/triremi) come su una vera plancia
   for (const [id, sea] of Object.entries(m.seas)) {
     const [cx,cy] = SEA_XY[id] || [0,0];
     const g = svgEl("g", { class:"sea", id:`sea_${id}` });
     g.append(svgEl("ellipse", { cx, cy, rx:SEA_RX, ry:SEA_RY }));
-    const nm = svgEl("text", { class:"nm", x:cx, y:cy-6, "text-anchor":"middle" });
-    nm.textContent = sea.name;
-    g.append(nm);
-    const tr = svgEl("text", { class:"tri", x:cx, y:cy+9, "text-anchor":"middle", "font-size":"10" });
+    const tr = svgEl("text", { class:"tri", x:cx, y:cy+4, "text-anchor":"middle", "font-size":"12" });
     g.append(tr);
     g.addEventListener("click", () => onSeaClick(id));
     gSeas.append(g);
@@ -585,13 +588,10 @@ function buildMap(m) {
   for (const [id, pr] of Object.entries(m.provinces)) {
     const [cx,cy] = PROV_XY[id] || [0,0];
     const g = svgEl("g", { class:"prov", id:`prov_${id}` });
-    g.append(svgEl("rect", { x:cx-TILE_W/2, y:cy-TILE_H/2, width:TILE_W, height:TILE_H, rx:8 }));
-    const nm = svgEl("text", { class:"nm", x:cx, y:cy-6, "text-anchor":"middle" });
-    nm.textContent = pr.name;
-    g.append(nm);
-    const lg = svgEl("text", { class:"lg", x:cx, y:cy+11, "text-anchor":"middle" });
+    g.append(svgEl("circle", { cx, cy, r:PIP_R }));
+    const lg = svgEl("text", { class:"lg", x:cx, y:cy+1, "text-anchor":"middle", "dominant-baseline":"central" });
     g.append(lg);
-    const pc = svgEl("text", { class:"pcStar", x:cx+TILE_W/2-12, y:cy-TILE_H/2+13 });
+    const pc = svgEl("text", { class:"pcStar", x:cx+PIP_R-1, y:cy-PIP_R+2 });
     g.append(pc);
     g.addEventListener("click", () => onProvClick(id));
     gProv.append(g);
@@ -1036,7 +1036,7 @@ function renderMapState(st) {
   for (const [id, pr] of Object.entries(st.map.provinces)) {
     const g = $(`prov_${id}`);
     if (!g) continue;
-    g.querySelector("rect").setAttribute("fill", ownerFill(pr.owner));
+    g.querySelector("circle").setAttribute("fill", ownerFill(pr.owner));
     const extra = ui.placements[id] ? `+${ui.placements[id]}` : "";
     g.querySelector(".lg").textContent = pr.legions > 0 ? `${pr.legions}${extra}` : (extra || "");
     g.querySelector(".pcStar").textContent = pr.power_center ? "★" : "";
