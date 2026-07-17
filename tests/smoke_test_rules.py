@@ -124,7 +124,7 @@ def main():
         rem = state["pending"]["landReinforceRemaining"]
         state = send_cmd(a1, players, "reinforce_land_place",
                          {"placements": {owned_by(state, a1.color)[0]: rem}})
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(a1, players, "end_phase")
         state = send_cmd(a1, players, "end_attacks")
 
@@ -168,7 +168,7 @@ def main():
         live["map"]["provinces"][Fb]["legions"] = 10
         live["map"]["provinces"][Tb]["legions"] = 1
 
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(a2, players, "end_phase")
 
         conquered = False
@@ -211,7 +211,7 @@ def main():
         state = send_cmd(ax, players, "reinforce_land_place",
                          {"placements": {owned_by(state, ax.color)[0]: rem}})
         live = gs_live()
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(ax, players, "end_phase")
 
         # con 1 solo difensore la conquista avviene senza perdite dell'attaccante,
@@ -269,7 +269,7 @@ def main():
         live["map"]["provinces"][Tc]["legions"] = 1
         live["map"]["seas"][sc]["triremes"] = {a3.color: 1}
 
-        for _ in range(3):  # -> SEA_ATTACKS
+        while state["turn"]["phase"] != "SEA_ATTACKS":
             state = send_cmd(a3, players, "end_phase")
         check("phase SEA_ATTACKS", state["turn"]["phase"] == "SEA_ATTACKS")
 
@@ -279,7 +279,10 @@ def main():
         state = send_cmd(a3, players, "sea_attack", {"from": Fc, "to": Tc, "seaId": sc, "legions": 3})
         check("sea attack ok within garrison", state["map"]["provinces"][Fc]["legions"] == 2)
 
-        state = send_cmd(a3, players, "end_phase")
+        # se non restano azioni navali possibili, la fase e' gia' stata
+        # auto-skippata a LAND_ATTACKS
+        if state["turn"]["phase"] != "LAND_ATTACKS":
+            state = send_cmd(a3, players, "end_phase")
         state = send_cmd(a3, players, "end_turn")
 
         print("== TURNO 4: protezione Â§18.4 (round <= 4) ==")
@@ -307,7 +310,7 @@ def main():
         live["map"]["provinces"][Bp]["legions"] = 1
         live["map"]["provinces"][F4]["legions"] = 5
 
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(a4, players, "end_phase")
 
         rnd = state["turn"]["round"]

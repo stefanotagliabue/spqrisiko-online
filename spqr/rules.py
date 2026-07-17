@@ -116,14 +116,16 @@ def garrison_deficits(gs: Dict[str, Any], color: str) -> list[str]:
     )
 
 
-def find_rebalance_move(gs: Dict[str, Any], color: str, deficits: list[str]) -> Optional[Dict[str, str]]:
+def find_rebalance_moves(gs: Dict[str, Any], color: str, deficits: list[str]) -> list[Dict[str, str]]:
     """
-    Cerca uno spostamento strategico (from, to) che porti a 2 una provincia in
-    deficit. Usa esattamente i criteri di validazione di strategic_move (rotta
-    via terra o via mare con superiorità navale §15.2, guarnigione minima §14.2
-    sulla donatrice), così la mossa restituita è sempre eseguibile.
+    Elenca tutti gli spostamenti strategici (from, to) che porterebbero a 2
+    una provincia in deficit. Usa esattamente i criteri di validazione di
+    strategic_move (rotta via terra o via mare con superiorità navale §15.2,
+    guarnigione minima §14.2 sulla donatrice), così ogni mossa restituita è
+    sempre eseguibile.
     """
     provs = gs["map"]["provinces"]
+    moves = []
     for d in deficits:
         d_seas = set(provs[d].get("adj_sea", []))
         for q, pq in provs.items():
@@ -136,8 +138,124 @@ def find_rebalance_move(gs: Dict[str, Any], color: str, deficits: list[str]) -> 
                 for sid in pq.get("adj_sea", [])
             )
             if route:
-                return {"from": q, "to": d}
-    return None
+                moves.append({"from": q, "to": d})
+    return moves
+
+
+def find_rebalance_move(gs: Dict[str, Any], color: str, deficits: list[str]) -> Optional[Dict[str, str]]:
+    """Prima mossa di riequilibrio valida, o None se non ce n'è nessuna."""
+    moves = find_rebalance_moves(gs, color, deficits)
+    return moves[0] if moves else None
+
+
+def can_strategic_move(gs: Dict[str, Any], color: str) -> bool:
+    """§15: c'è almeno uno spostamento strategico legale nello stato attuale
+    (stessi criteri di validazione di strategic_move, inclusa la regola casa
+    "garrison-first": se esiste una mossa che sana un deficit, solo quelle
+    contano; altrimenti conta qualunque spostamento fra proprie province)."""
+    deficits = garrison_deficits(gs, color)
+    if deficits and find_rebalance_move(gs, color, deficits):
+        return True
+    provs = gs["map"]["provinces"]
+    for from_id, pf in provs.items():
+        if pf.get("owner") != color:
+            continue
+        available = int(pf.get("legions", 0)) - min_garrison(gs, from_id, color)
+        if available < 1:
+            continue
+        if any(provs[nb].get("owner") == color for nb in pf.get("adj_land", [])):
+            return True
+        for sid in pf.get("adj_sea", []):
+            if not has_sea_superiority(gs["map"]["seas"][sid], color):
+                continue
+            if any(
+                to_id != from_id and pt.get("owner") == color and sid in pt.get("adj_sea", [])
+                for to_id, pt in provs.items()
+            ):
+                return True
+    return False
+
+
+def can_buy_trireme(gs: Dict[str, Any], color: str) -> bool:
+    """§7.1: serve una provincia costiera con almeno 4 legioni (3 da convertire + 1 di guarnigione)."""
+    return any(
+        pr.get("owner") == color and int(pr.get("legions", 0)) >= 4 and pr.get("adj_sea")
+        for pr in gs["map"]["provinces"].values()
+    )
+
+
+def can_convert_trireme(gs: Dict[str, Any], color: str) -> bool:
+    """§6.6: serve una propria trireme in un mare adiacente a una propria provincia."""
+    seas = gs["map"]["seas"]
+    for pr in gs["map"]["provinces"].values():
+        if pr.get("owner") != color:
+            continue
+        if any(tri_count(seas[sid], color) >= 1 for sid in pr.get("adj_sea", [])):
+            return True
+    return False
+
+
+def can_naval_move(gs: Dict[str, Any], color: str) -> bool:
+    """§9.3: serve una propria trireme in un mare con almeno un mare adiacente."""
+    return any(
+        tri_count(sea, color) >= 1 and sea.get("adj_sea")
+        for sea in gs["map"]["seas"].values()
+    )
+
+
+def can_naval_combat(gs: Dict[str, Any], color: str) -> bool:
+    """§11: serve un mare dove sia il proprio giocatore sia un avversario abbiano
+    triremi, con un combattimento non già chiuso/vincolato a un altro bersaglio."""
+    combats = gs["turn"].get("navalCombats", {})
+    for sid, sea in gs["map"]["seas"].items():
+        mine = tri_count(sea, color)
+        if mine < 1:
+            continue
+        combat = combats.get(sid)
+        if combat and combat.get("closed"):
+            continue
+        for c, n in sea.get("triremes", {}).items():
+            if c == color or n < 1:
+                continue
+            if combat and combat.get("target") not in (None, c):
+                continue
+            if min(3, mine) >= min(3, n):
+                return True
+    return False
+
+
+def can_sea_attack(gs: Dict[str, Any], color: str) -> bool:
+    """§12: serve una propria provincia costiera con legioni disponibili oltre la
+    guarnigione minima, superiorità navale nel mare, e un bersaglio nemico non
+    già attaccato via mare questo turno."""
+    turn = gs["turn"]
+    provs = gs["map"]["provinces"]
+    seas = gs["map"]["seas"]
+    sea_attacked = set(turn.get("seaAttackedProvinces", []))
+    sea_conquered = set(turn.get("seaConqueredProvinces", []))
+    for from_id, pf in provs.items():
+        if pf.get("owner") != color or from_id in sea_conquered:
+            continue
+        available = int(pf.get("legions", 0)) - min_garrison(gs, from_id, color)
+        if available < 1:
+            continue
+        for sid in pf.get("adj_sea", []):
+            my_tri = tri_count(seas[sid], color)
+            if my_tri < 1:
+                continue
+            for to_id, pt in provs.items():
+                defender = pt.get("owner")
+                if defender is None or defender == color or to_id in sea_attacked:
+                    continue
+                if sid not in pt.get("adj_sea", []):
+                    continue
+                def_tri = 0 if str(defender).startswith("NEUTRAL_") else tri_count(seas[sid], defender)
+                if my_tri <= def_tri:
+                    continue
+                if is_last_province_protected(gs, defender):
+                    continue
+                return True
+    return False
 
 
 def is_last_province_protected(gs: Dict[str, Any], defender_color: Optional[str]) -> bool:

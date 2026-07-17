@@ -132,12 +132,14 @@ def main():
     check("trireme removed", state["map"]["seas"][sea_id]["triremes"].get(color) is None)
 
     print("== FUORI DALLE FASI DI RINFORZO: RIFIUTATI ==")
+    # niente triremi rimaste: le fasi navali sono tutte inattuabili e vengono
+    # auto-skippate fino a LAND_ATTACKS
     state = send_cmd(actor, players, "end_phase")
-    check("phase NAVAL_MOVE", state["turn"]["phase"] == "NAVAL_MOVE")
+    check("phase LAND_ATTACKS (naval phases auto-skipped)", state["turn"]["phase"] == "LAND_ATTACKS")
     expect_error(actor, "buy_trireme", {"provinceId": coastal, "seaId": sea_id},
-                 "reinforcement", "buy_trireme refused in NAVAL_MOVE")
+                 "reinforcement", "buy_trireme refused outside reinforce phases")
     expect_error(actor, "trireme_to_legions", {"seaId": sea_id, "provinceId": coastal},
-                 "reinforcement", "trireme_to_legions refused in NAVAL_MOVE")
+                 "reinforcement", "trireme_to_legions refused outside reinforce phases")
 
     for p in players:
         p.ws.__exit__(None, None, None)

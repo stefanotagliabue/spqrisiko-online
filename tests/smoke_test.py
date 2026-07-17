@@ -157,8 +157,8 @@ def main():
         check("phase REINFORCE_NAVAL", state["turn"]["phase"] == "REINFORCE_NAVAL")
         check("legions placed", state["map"]["provinces"][target_from]["legions"] == 5)
 
-        # salta le fasi navali (facoltative)
-        for _ in range(4):
+        # salta le fasi navali (facoltative, ora auto-skippate se non attuabili)
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actor, players, "end_phase")
         check("phase LAND_ATTACKS after naval skip", state["turn"]["phase"] == "LAND_ATTACKS")
 
@@ -243,7 +243,7 @@ def main():
         check("player 2 in REINFORCE_LAND", state["turn"]["phase"] == "REINFORCE_LAND")
         state = send_cmd(actor2, players, "reinforce_land_place",
                          {"placements": {owned_by(state, actor2.color)[0]: state["pending"]["landReinforceRemaining"]}})
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actor2, players, "end_phase")
         state = send_cmd(actor2, players, "end_turn")
         check("player 2 turn ended", state["turn"]["phase"] == "SCORE")

@@ -34,7 +34,7 @@ from spqr.persistence import (  # noqa: F401
 )
 from spqr.net import broadcast_json_async, state_view, broadcast_state_async  # noqa: F401
 from spqr.engine import check_elimination, finish_turn  # noqa: F401
-from spqr.handlers import HANDLERS
+from spqr.handlers import HANDLERS, auto_progress_turn
 
 app = FastAPI()
 
@@ -154,6 +154,7 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
                     await ws.send_json({"type": "error", "error": error})
                     continue
 
+                auto_progress_turn(room)
                 await broadcast_state_async(room)
 
             except Exception as e:

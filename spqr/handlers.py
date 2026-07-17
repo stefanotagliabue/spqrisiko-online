@@ -12,8 +12,9 @@ from .state import (
     new_game_state, now_ms,
 )
 from .rules import (
-    build_deck, calc_land_reinforcements, can_place_power_center,
-    compute_score_awards, find_rebalance_move, garrison_deficits,
+    build_deck, calc_land_reinforcements, can_buy_trireme, can_convert_trireme,
+    can_naval_combat, can_naval_move, can_place_power_center, can_sea_attack,
+    can_strategic_move, compute_score_awards, find_rebalance_move, garrison_deficits,
     has_sea_superiority, is_last_province_protected, min_garrison,
     normalize_prov_id, remove_triremes, reset_turn_tracking,
     resolve_naval_roll, resolve_risk_roll, roll_dice, tri_count,
@@ -439,6 +440,67 @@ def handle_buy_trireme(room: str, player_id: str, payload: dict) -> Optional[str
     sea["triremes"][p["color"]] = sea["triremes"].get(p["color"], 0) + 1
     add_log(room, f"{p['name']} -3 legions in {prov_id} -> +1 trireme in {sea_id}")
     return None
+
+
+NAVAL_NEXT_PHASE = {
+    "REINFORCE_NAVAL": "NAVAL_MOVE",
+    "NAVAL_MOVE": "NAVAL_COMBAT",
+    "NAVAL_COMBAT": "SEA_ATTACKS",
+    "SEA_ATTACKS": "LAND_ATTACKS",
+}
+
+NAVAL_PHASE_POSSIBLE = {
+    "REINFORCE_NAVAL": lambda gs, color: can_buy_trireme(gs, color) or can_convert_trireme(gs, color),
+    "NAVAL_MOVE": can_naval_move,
+    "NAVAL_COMBAT": can_naval_combat,
+    "SEA_ATTACKS": can_sea_attack,
+}
+
+
+def auto_advance_naval(room: str) -> None:
+    """Le fasi navali sono tutte facoltative (§9-12): se il giocatore di turno
+    non ha alcuna azione legale disponibile (niente triremi, niente da
+    comprare/convertire, niente bersagli), l'engine salta avanti da solo
+    invece di costringere a un tap a vuoto per ognuna."""
+    gs = GAMES[room]
+    turn = gs["turn"]
+    if not gs["players"]:
+        return
+    color = gs["players"][turn["turnIndex"]].get("color")
+    if not color:
+        return
+    while turn["phase"] in NAVAL_NEXT_PHASE and not NAVAL_PHASE_POSSIBLE[turn["phase"]](gs, color):
+        old = turn["phase"]
+        turn["phase"] = NAVAL_NEXT_PHASE[old]
+        add_log(room, f"Auto-skip {old} (nothing to do) -> {turn['phase']}")
+
+
+def auto_skip_strategic_move(room: str) -> None:
+    """Come le fasi navali: se il giocatore di turno non ha alcuno
+    spostamento strategico legale disponibile (es. tutte le proprie
+    province già a 2+ legioni, nessuna guarnigione da sanare, nessuna
+    rotta via mare con superiorità), non c'è nulla da scegliere e il
+    turno si chiude da solo invece di aspettare un tap a vuoto."""
+    gs = GAMES[room]
+    turn = gs["turn"]
+    if turn["phase"] != "STRATEGIC_MOVE" or not gs["players"]:
+        return
+    color = gs["players"][turn["turnIndex"]].get("color")
+    if not color:
+        return
+    if can_strategic_move(gs, color):
+        return
+    p = gs["players"][turn["turnIndex"]]
+    add_log(room, f"{p['name']} auto end_turn (nessuno spostamento strategico possibile)")
+    finish_turn(room)
+
+
+def auto_progress_turn(room: str) -> None:
+    """Salta le fasi/il turno quando non c'è alcuna azione legale
+    disponibile (fasi navali facoltative, spostamento strategico di fine
+    turno): quando c'è più di una possibilità la scelta resta al giocatore."""
+    auto_advance_naval(room)
+    auto_skip_strategic_move(room)
 
 
 def handle_end_phase(room: str, player_id: str, payload: dict) -> Optional[str]:

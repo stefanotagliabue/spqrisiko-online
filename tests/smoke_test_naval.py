@@ -145,6 +145,14 @@ def main():
         check("second trireme", state["map"]["seas"][sea_a]["triremes"].get(actor.color) == 2)
 
         print("== MOVIMENTO NAVALE ==")
+        # iniezione anticipata: triremi nemiche (Bruno, Carla) giA nel mare sea_a,
+        # cosA¬ che il combattimento navale resti attuabile e la fase non venga
+        # auto-skippata non appena si esce da NAVAL_MOVE
+        enemy = next(p for p in players if p is not actor)
+        third = next(p for p in players if p is not actor and p is not enemy)
+        gs_live()["map"]["seas"][sea_a]["triremes"][enemy.color] = 1
+        gs_live()["map"]["seas"][sea_a]["triremes"][third.color] = 1
+
         state = send_cmd(actor, players, "end_phase")
         check("phase NAVAL_MOVE", state["turn"]["phase"] == "NAVAL_MOVE")
 
@@ -152,15 +160,13 @@ def main():
         state = send_cmd(actor, players, "naval_move", {"fromSea": sea_a, "toSea": sea_b, "count": 1})
         check("trireme moved", state["map"]["seas"][sea_b]["triremes"].get(actor.color) == 1)
         check("source updated", state["map"]["seas"][sea_a]["triremes"].get(actor.color) == 1)
-        check("auto-advance to NAVAL_COMBAT (single move)", state["turn"]["phase"] == "NAVAL_COMBAT")
+        check("auto-advance to NAVAL_COMBAT (single move, enemy triremes present)",
+              state["turn"]["phase"] == "NAVAL_COMBAT")
 
         print("== COMBATTIMENTO NAVALE ==")
-        # iniezione: triremi nemiche (Bruno) nello stesso mare sea_a
-        enemy = next(p for p in players if p is not actor)
-        third = next(p for p in players if p is not actor and p is not enemy)
-        gs_live()["map"]["seas"][sea_a]["triremes"][enemy.color] = 1
-        gs_live()["map"]["seas"][sea_a]["triremes"][third.color] = 1
-
+        # tiene viva un'altra opportunita' di combattimento (sea_b vs Carla)
+        # per evitare l'auto-skip se il combattimento in sea_a si chiude
+        gs_live()["map"]["seas"][sea_b]["triremes"][third.color] = 1
         state = send_cmd(actor, players, "naval_attack_roll",
                          {"seaId": sea_a, "targetColor": enemy.color, "attackDice": 1})
         combat = state["turn"]["navalCombats"].get(sea_a)
@@ -177,10 +183,9 @@ def main():
                      "already", "one combat per sea per turn (Â§11.4)")
 
         print("== ATTACCO VIA MARE ==")
-        state = send_cmd(actor, players, "end_phase")
-        check("phase SEA_ATTACKS", state["turn"]["phase"] == "SEA_ATTACKS")
-
-        # scenario iniettato: F mia (12 legioni), T nemica (2 legioni), stesso mare, superioritÃ  mia
+        # scenario iniettato PRIMA di lasciare NAVAL_COMBAT: F mia (12 legioni),
+        # T nemica (2 legioni), stesso mare, superiorità mia. Così SEA_ATTACKS
+        # resta attuabile e non viene auto-skippata.
         provs = state["map"]["provinces"]
         sa_from, sa_to, sa_sea = None, None, None
         for pid in owned_by(state, actor.color):
@@ -201,12 +206,16 @@ def main():
         live["map"]["provinces"][sa_to]["legions"] = 2
         live["map"]["seas"][sa_sea]["triremes"][actor.color] = 3
         live["map"]["seas"][sa_sea]["triremes"].pop(enemy.color, None)
+        live["map"]["seas"][sa_sea]["triremes"][enemy.color] = 1
 
-        # Â§12.2: senza superioritÃ  niente attacco (iniettiamo paritÃ  momentanea)
+        state = send_cmd(actor, players, "end_phase")
+        check("phase SEA_ATTACKS", state["turn"]["phase"] == "SEA_ATTACKS")
+
+        # §12.2: senza superiorità niente attacco (iniettiamo parità momentanea)
         live["map"]["seas"][sa_sea]["triremes"][enemy.color] = 3
         expect_error(actor, "sea_attack",
                      {"from": sa_from, "to": sa_to, "seaId": sa_sea, "legions": 8},
-                     "more triremes", "sea attack refused without superiority (Â§12.2)")
+                     "more triremes", "sea attack refused without superiority (§12.2)")
         live["map"]["seas"][sa_sea]["triremes"][enemy.color] = 1
 
         state = send_cmd(actor, players, "sea_attack",
@@ -238,7 +247,10 @@ def main():
                              {"from": sa_to, "to": target2, "seaId": sa_sea, "legions": 1},
                              "conquered by sea", "no sea attack from sea-conquered province (Â§12.7)")
 
-        state = send_cmd(actor, players, "end_phase")
+        # se dopo l'attacco non restano azioni navali possibili, la fase e'
+        # gia' stata auto-skippata a LAND_ATTACKS
+        if state["turn"]["phase"] != "LAND_ATTACKS":
+            state = send_cmd(actor, players, "end_phase")
         check("phase LAND_ATTACKS", state["turn"]["phase"] == "LAND_ATTACKS")
         state = send_cmd(actor, players, "end_turn")
         check("turn A ended", state["turn"]["phase"] == "SCORE")
@@ -262,7 +274,7 @@ def main():
         rem = state["pending"]["landReinforceRemaining"]
         state = send_cmd(actor2, players, "reinforce_land_place",
                          {"placements": {owned_by(state, actor2.color)[0]: rem}})
-        for _ in range(4):  # REINFORCE_NAVAL -> ... -> LAND_ATTACKS
+        while state["turn"]["phase"] != "LAND_ATTACKS":  # REINFORCE_NAVAL -> ... -> LAND_ATTACKS
             state = send_cmd(actor2, players, "end_phase")
         check("skipped naval phases to LAND_ATTACKS", state["turn"]["phase"] == "LAND_ATTACKS")
         state = send_cmd(actor2, players, "end_turn")
@@ -289,7 +301,7 @@ def main():
 
         state = send_cmd(actor3, players, "reinforce_land_place",
                          {"placements": {(sm_from or mine3[0]): rem}})
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actor3, players, "end_phase")
         state = send_cmd(actor3, players, "end_attacks")
         check("phase STRATEGIC_MOVE", state["turn"]["phase"] == "STRATEGIC_MOVE")

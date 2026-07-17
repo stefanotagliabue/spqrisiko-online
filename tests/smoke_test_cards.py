@@ -95,7 +95,7 @@ def quick_turn(actor, players, state):
     rem = state["pending"]["landReinforceRemaining"]
     state = send_cmd(actor, players, "reinforce_land_place",
                      {"placements": {owned_by(state, actor.color)[0]: rem}})
-    for _ in range(4):
+    while state["turn"]["phase"] != "LAND_ATTACKS":
         state = send_cmd(actor, players, "end_phase")
     return send_cmd(actor, players, "end_turn")
 
@@ -167,7 +167,7 @@ def main():
 
         state = send_cmd(actorA, players, "reinforce_land_place",
                          {"placements": {owned_by(state, actorA.color)[0]: 15}})
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actorA, players, "end_phase")
         state = send_cmd(actorA, players, "end_turn")
 
@@ -186,7 +186,7 @@ def main():
         state = send_cmd(actorB, players, "reinforce_land_place",
                          {"placements": {pc_prov_b: 11}})
         legions_pc_b = state["map"]["provinces"][pc_prov_b]["legions"]
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actorB, players, "end_phase")
         state = send_cmd(actorB, players, "end_turn")
 
@@ -240,7 +240,7 @@ def main():
         rem = state["pending"]["landReinforceRemaining"]
         state = send_cmd(actorC, players, "reinforce_land_place",
                          {"placements": {owned_by(state, actorC.color)[0]: rem}})
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(actorC, players, "end_phase")
         state = send_cmd(actorC, players, "end_turn")
 

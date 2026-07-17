@@ -103,7 +103,7 @@ def normalize_all_legions(color, n=3):
 
 
 def end_turn_cleanly(actor, players, state):
-    for _ in range(4):  # REINFORCE_NAVAL -> ... -> LAND_ATTACKS
+    while state["turn"]["phase"] != "LAND_ATTACKS":  # fasi navali facoltative, auto-skippate se inattuabili
         state = send_cmd(actor, players, "end_phase")
     return send_cmd(actor, players, "end_turn")
 
@@ -235,7 +235,7 @@ def main():
         check("deficit with own neighbour found", D4 is not None)
         provs[D4]["legions"] = 1
 
-        for _ in range(4):  # -> LAND_ATTACKS
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(a3, players, "end_phase")
         expect_error(a3, "end_turn", {}, "garrison-first",
                      "end_turn refused from LAND_ATTACKS with fixable deficit")
@@ -280,7 +280,7 @@ def main():
         for s in gs_live()["map"]["seas"].values():
             (s.get("triremes") or {}).pop(a5.color, None)
 
-        for _ in range(4):
+        while state["turn"]["phase"] != "LAND_ATTACKS":
             state = send_cmd(a5, players, "end_phase")
         state = send_cmd(a5, players, "end_turn")
         check("end_turn allowed when no rebalance possible",
