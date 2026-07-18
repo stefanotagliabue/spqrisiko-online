@@ -155,6 +155,13 @@ class Bot:
                 self.last_ready_ts = time.time()
                 await self.cmd(ws, "ready")
                 log(self.name, "pronto")
+                return
+            # partita di soli bot: il primo in lista fa partire quando sono
+            # tutti pronti (con un umano in stanza sara' lui a premere prima)
+            if (len(st["players"]) >= 3 and all(p["ready"] for p in st["players"])
+                    and st["players"][0]["id"] == self.pid):
+                await self.cmd(ws, "start_game")
+                log(self.name, "avvio partita")
             return
         if ph == "GAME_OVER":
             if not getattr(self, "_go_logged", False):
