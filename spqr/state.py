@@ -25,6 +25,10 @@ TOKENS: Dict[str, Dict[str, str]] = {}
 # room -> playerId -> WebSocket
 PLAYER_WS: Dict[str, Dict[str, Any]] = {}
 
+# --- Spettatori: guardano la partita senza sedersi al tavolo ---
+# room -> set di WebSocket (nessun playerId: non giocano e non hanno carte)
+SPECTATOR_WS: Dict[str, Set[Any]] = {}
+
 PHASES = [
     "LOBBY",
     "SETUP",

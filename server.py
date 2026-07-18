@@ -15,7 +15,7 @@ from map_data import get_map
 # Ri-esportazioni: i test (e ogni altro consumatore storico) continuano a
 # usare i nomi come attributi di questo modulo, es. server.GAMES.
 from spqr.state import (  # noqa: F401
-    GAMES, ROOMS, TOKENS, PLAYER_WS, ROOM_RE,
+    GAMES, ROOMS, TOKENS, PLAYER_WS, SPECTATOR_WS, ROOM_RE,
     PHASES, PLAYER_COLORS, NEUTRAL_COLOR, MAX_POWER_CENTERS, MAX_PLAYERS, NO_ELIMINATION_ROUNDS,
     now_ms, new_game_state, add_log, get_player_by_id,
     assign_colors, init_neutrals,
@@ -57,6 +57,26 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
     if not ROOM_RE.match(room):
         await ws.send_json({"type": "error", "error": "Invalid room code (use letters, digits, - or _, max 16)"})
         await ws.close(code=4003)
+        return
+
+    # --- spettatore: guarda e basta, non entra fra i giocatori ---
+    if ws.query_params.get("spectate") == "1":
+        if room not in GAMES:
+            await ws.send_json({"type": "error", "error": "Stanza inesistente"})
+            await ws.close(code=4004)
+            return
+        ROOMS.setdefault(room, set()).add(ws)
+        SPECTATOR_WS.setdefault(room, set()).add(ws)
+        await ws.send_json({"type": "welcome", "room": room, "playerId": None,
+                            "token": None, "spectator": True})
+        await broadcast_state_async(room)
+        try:
+            while True:
+                await ws.receive_text()  # gli spettatori non danno comandi
+                await ws.send_json({"type": "error", "error": "Sei spettatore: non puoi giocare"})
+        except WebSocketDisconnect:
+            ROOMS.get(room, set()).discard(ws)
+            SPECTATOR_WS.get(room, set()).discard(ws)
         return
 
     # create game state if missing

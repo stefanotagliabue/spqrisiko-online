@@ -393,6 +393,7 @@
       <input id="room" placeholder="Codice stanza" maxlength="8" style="text-transform:uppercase" />
       <button id="btnCreate">Crea nuova stanza</button>
       <button id="btnConnect" class="primary">Connetti</button>
+      <button id="btnSpectate">👁 Entra come spettatore</button>
       <div id="joinMsg" style="font-size:13px;color:var(--muted)"></div>
     </div>
   </div>
@@ -498,7 +499,7 @@ const COLOR_HEX = {
 const CARD_ICON = { LEGIONARIO:"🗡️", TRIREME:"⛵", VESSILLO:"🚩", ARENA:"🏛️" };
 
 /* ============ stato client ============ */
-let ws = null, myPlayerId = null, lastState = null;
+let ws = null, myPlayerId = null, lastState = null, isSpectator = false;
 let autoReconnect = false, reconnectTimer = null;
 let mapBuilt = false;
 
@@ -537,15 +538,20 @@ function genRoom() {
   return s;
 }
 
-function connect() {
+function connect(spectate = false) {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   const name = ($("name").value.trim() || "anon");
   const room = ($("room").value.trim().toUpperCase() || "LOBBY");
   const proto = location.protocol === "https:" ? "wss" : "ws";
   let url = `${proto}://${location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(name)}`;
-  const s = loadSession();
-  if (s && s.room === room && s.playerId && s.token)
-    url += `?playerId=${encodeURIComponent(s.playerId)}&token=${encodeURIComponent(s.token)}`;
+  if (spectate) {
+    url += "?spectate=1";
+  } else {
+    const s = loadSession();
+    if (s && s.room === room && s.playerId && s.token)
+      url += `?playerId=${encodeURIComponent(s.playerId)}&token=${encodeURIComponent(s.token)}`;
+  }
+  isSpectator = spectate;
 
   ws = new WebSocket(url);
   ws.onopen = () => { $("connDot").classList.add("on"); };
@@ -553,9 +559,11 @@ function connect() {
     const msg = JSON.parse(ev.data);
     if (msg.type === "welcome") {
       myPlayerId = msg.playerId;
+      isSpectator = !!msg.spectator;
       autoReconnect = true;
-      saveSession({ room: msg.room, name, playerId: msg.playerId, token: msg.token });
-      $("roomChip").innerHTML = `stanza <b>${msg.room}</b>`;
+      // lo spettatore non ha una sessione da conservare (nessun posto al tavolo)
+      if (!isSpectator) saveSession({ room: msg.room, name, playerId: msg.playerId, token: msg.token });
+      $("roomChip").innerHTML = `stanza <b>${msg.room}</b>` + (isSpectator ? " · 👁 spettatore" : "");
       $("joinScreen").style.display = "none";
       $("gameScreen").classList.add("on");
       return;
@@ -572,11 +580,12 @@ function connect() {
   ws.onclose = ev => {
     $("connDot").classList.remove("on");
     if (ev.code === 4002) { autoReconnect = false; toast("Sessione aperta in un'altra scheda"); return; }
-    if (autoReconnect) reconnectTimer = setTimeout(connect, 2000);
+    if (autoReconnect) reconnectTimer = setTimeout(() => connect(isSpectator), 2000);
   };
 }
 
 function sendCmd(cmd, payload={}) {
+  if (isSpectator) return toast("Sei spettatore: non puoi giocare");
   if (!ws || ws.readyState !== 1) return toast("Non connesso");
   ws.send(JSON.stringify({ type:"cmd", cmd, playerId: myPlayerId, payload }));
 }
@@ -1262,6 +1271,10 @@ function renderActions(st) {
   const box = $("actions");
   box.innerHTML = "";
   const ph = st.turn.phase;
+  if (isSpectator) {
+    box.append(el("div", { class:"hint" }, "👁 Stai guardando la partita: nessuna azione disponibile."));
+    return;
+  }
   const add = (...nodes) => nodes.forEach(n => box.append(n));
   const hint = t => el("div", { class:"hint" }, t);
   const selInfo = t => el("div", { class:"selInfo" }, t);
@@ -1648,7 +1661,11 @@ $("btnCreate").onclick = () => {
   $("room").value = genRoom();
   $("joinMsg").textContent = "Codice generato: condividilo con gli altri giocatori.";
 };
-$("btnConnect").onclick = connect;
+$("btnConnect").onclick = () => connect(false);
+$("btnSpectate").onclick = () => {
+  if (!$("room").value.trim()) return toast("Serve il codice della stanza");
+  connect(true);
+};
 $("btnReset").onclick = () => {
   if (confirm("Riportare la partita alla lobby per tutti?")) sendCmd("reset_game");
 };

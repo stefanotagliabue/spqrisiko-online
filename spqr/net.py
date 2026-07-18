@@ -1,7 +1,7 @@
 """Comunicazione verso i client: broadcast e viste per-giocatore."""
 from typing import Dict, Any
 
-from .state import GAMES, ROOMS, PLAYER_WS
+from .state import GAMES, ROOMS, PLAYER_WS, SPECTATOR_WS
 from .persistence import save_room
 
 
@@ -14,7 +14,9 @@ async def broadcast_json_async(room: str, payload: Dict[str, Any]) -> None:
 
 def state_view(gs: Dict[str, Any], viewer_id: str) -> Dict[str, Any]:
     """Vista personalizzata dello stato: le carte degli altri giocatori
-    non vengono inviate (solo il conteggio in cardCount)."""
+    non vengono inviate (solo il conteggio in cardCount).
+
+    viewer_id None = spettatore: non vede le carte di nessuno."""
     view = dict(gs)
     view["players"] = []
     for p in gs["players"]:
@@ -37,5 +39,15 @@ async def broadcast_state_async(room: str) -> None:
             continue
         try:
             await peer.send_json({"type": "state", "room": room, "state": state_view(gs, pid)})
+        except Exception:
+            pass
+    spectator_view = None
+    for peer in list(SPECTATOR_WS.get(room, set())):
+        if peer not in active:
+            continue
+        if spectator_view is None:
+            spectator_view = state_view(gs, None)  # uguale per tutti: calcolata una volta
+        try:
+            await peer.send_json({"type": "state", "room": room, "state": spectator_view})
         except Exception:
             pass
