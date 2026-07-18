@@ -67,9 +67,10 @@
   <button id="copy">Copia coordinate</button>
   <button id="reset">Reset posizioni</button>
   <span class="hint">trascina province e mari · frecce = 1px (shift = 10px) sull'ultimo mosso</span>
+  <span class="hint" id="src">base: …</span>
 </header>
 <div id="wrap">
-  <svg id="map" viewBox="0 0 1240 700"></svg>
+  <svg id="map" viewBox="0 0 1240 919"></svg>
   <textarea id="out" spellcheck="false"></textarea>
 </div>
 
@@ -79,30 +80,32 @@
    pieni (una pedina per giocatore) e le province con il centro di potere
    acceso: cosi' si vede l'ingombro nel caso peggiore. */
 const PROV_XY0 = {
-  BRITANNIA:[141,71], GERMANIA_INFERIOR:[346,36], BELGICA:[280,144],
-  LUGDUNENSE:[339,215], RAETIA:[422,107], NORICUM:[524,97],
-  PANNONIA:[710,131], DACIA:[668,43], MOESIA:[769,77],
-  AQUITANIA:[200,268], NARBONENSIS:[277,294], CISALPINA:[430,227],
+  BRITANNIA:[165,72], GERMANIA_INFERIOR:[275,43], BELGICA:[294,166],
+  LUGDUNENSE:[304,232], RAETIA:[427,132], NORICUM:[531,121],
+  PANNONIA:[710,132], DACIA:[668,43], MOESIA:[769,77],
+  AQUITANIA:[213,269], NARBONENSIS:[287,297], CISALPINA:[430,227],
   ILLIRIA:[531,199], DALMAZIA:[631,181], THRACIA:[794,190],
-  GALICIA:[108,415], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
-  BAETICA:[171,555], ITALIA:[463,292], CORSICA:[415,338],
-  SARDINIA:[432,408], SICILIA:[572,449], BALEARES:[279,472],
-  EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
+  GALICIA:[119,414], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
+  BAETICA:[178,558], ITALIA:[474,295], CORSICA:[432,343],
+  SARDINIA:[439,413], SICILIA:[572,449], BALEARES:[302,463],
+  EPIRUS:[677,300], MACEDONIA:[724,253], ACHAIA:[749,351],
   CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146],
-  PONTO:[1084,67], GALATIA:[975,200], CAPPADOCIA:[1078,181],
-  CILICIA:[983,252], CIPRO:[1019,311], SYRIA:[1141,331],
-  JUDEA:[1143,455], ARABIA:[1196,446], ARMENIA:[1191,200],
-  MESOPOTAMIA:[1187,291], MAURETANIA:[308,630], NUMIDIA:[401,600],
-  AFRICA:[489,562], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
+  PONTO:[1084,67], GALATIA:[967,205], CAPPADOCIA:[1078,181],
+  CILICIA:[984,261], CIPRO:[1012,306], SYRIA:[1134,329],
+  JUDEA:[1144,456], ARABIA:[1220,454], ARMENIA:[1191,200],
+  MESOPOTAMIA:[1178,294], MAURETANIA:[308,630], NUMIDIA:[401,600],
+  AFRICA:[496,555], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
 };
 const SEA_XY0 = {
-  BRITANNICUS:[69,165], CANTABRICUM:[75,291], IBERICUM:[67,637],
+  BRITANNICUS:[69,165], CANTABRICUM:[72,261], IBERICUM:[67,637],
   BALEARICUM:[350,511], SINUS_GALLICUS:[353,383], TYRRENUM:[521,394],
-  HADRIATICUM:[576,271], IONIUM:[730,452], AEGEUM:[857,351],
-  CRETICUM:[965,425], PONTUS_EUXINUS:[864,70], SYRTIS:[615,549],
+  HADRIATICUM:[576,271], IONIUM:[754,479], AEGEUM:[857,351],
+  CRETICUM:[930,454], PONTUS_EUXINUS:[864,70], SYRTIS:[581,506],
 };
 const COLORS = ["#c0483e", "#3f6fbf", "#c29a2e", "#3f9159", "#1e1e26"];
 const PIP_R = 15, GAP = 3, PAD = 5;
+/* la plancia intera come nel gioco: mappa 0..700, tracciato punteggi 700..919 */
+const VB_W = 1240, VB_H = 919;
 const STORE = "spq_map_xy_edit";
 
 const $ = id => document.getElementById(id);
@@ -112,25 +115,51 @@ const svgEl = (t, a={}) => {
   return e;
 };
 
-const defaults = () => ({
-  prov: JSON.parse(JSON.stringify(PROV_XY0)),
-  sea: JSON.parse(JSON.stringify(SEA_XY0)),
-});
-let pos = (() => {
-  const d = defaults();
+/* i valori qui sopra sono solo una rete di sicurezza: la base vera viene letta
+   da index.html all'avvio, cosi' l'editor non va mai fuori sincrono col gioco */
+let LIVE = { prov: PROV_XY0, sea: SEA_XY0 };
+const defaults = () => JSON.parse(JSON.stringify(LIVE));
+
+function savedOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORE) || "null") || {}; } catch { return {}; }
+}
+function rebuildPos() {
+  const d = defaults(), s = savedOverrides();
+  pos = { prov: { ...d.prov, ...(s.prov||{}) }, sea: { ...d.sea, ...(s.sea||{}) } };
+}
+let pos;
+rebuildPos();
+
+async function syncFromGame() {
+  const grab = (src, name) => {
+    const blk = src.match(new RegExp("const " + name + "\\s*=\\s*\\{([\\s\\S]*?)\\n\\};"));
+    if (!blk) return null;
+    const t = {};
+    for (const m of blk[1].matchAll(/(\w+)\s*:\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g)) {
+      t[m[1]] = [+m[2], +m[3]];
+    }
+    return Object.keys(t).length ? t : null;
+  };
   try {
-    const s = JSON.parse(localStorage.getItem(STORE) || "null");
-    if (s) return { prov: { ...d.prov, ...(s.prov||{}) }, sea: { ...d.sea, ...(s.sea||{}) } };
+    const src = await (await fetch("/index.html", { cache: "no-store" })).text();
+    const p = grab(src, "PROV_XY"), s = grab(src, "SEA_XY");
+    if (p && s) {
+      LIVE = { prov: p, sea: s };
+      rebuildPos();
+      $("src").textContent = "base: index.html";
+      draw();
+      return;
+    }
   } catch {}
-  return d;
-})();
+  $("src").textContent = "base: copia locale (index.html non letto)";
+}
 let nPlayers = 5, sqSize = 15, legions = 8, last = null;
 
 function draw() {
   const svg = $("map");
   svg.innerHTML = "";
   svg.append(svgEl("image", {
-    href: "/map.jpg", x: 0, y: 0, width: 1240, height: 700, preserveAspectRatio: "none",
+    href: "/board.jpg", x: 0, y: 0, width: VB_W, height: VB_H, preserveAspectRatio: "none",
   }));
   const showNames = $("names").checked, showPc = $("pc").checked;
   const boxH = sqSize + 2*PAD, boxW = nPlayers*sqSize + (nPlayers-1)*GAP + 2*PAD;
@@ -204,7 +233,7 @@ function save() { localStorage.setItem(STORE, JSON.stringify(pos)); }
 let drag = null;
 const svgPoint = ev => {
   const r = $("map").getBoundingClientRect();
-  return [(ev.clientX - r.left) / r.width * 1240, (ev.clientY - r.top) / r.height * 700];
+  return [(ev.clientX - r.left) / r.width * VB_W, (ev.clientY - r.top) / r.height * VB_H];
 };
 const at = key => { const [k, id] = key.split(":"); return pos[k][id]; };
 
@@ -224,8 +253,8 @@ $("map").addEventListener("pointermove", ev => {
   const [px, py] = svgPoint(ev);
   const [k, id] = drag.key.split(":");
   pos[k][id] = [
-    Math.round(Math.min(1240, Math.max(0, px + drag.dx))),
-    Math.round(Math.min(700, Math.max(0, py + drag.dy))),
+    Math.round(Math.min(VB_W, Math.max(0, px + drag.dx))),
+    Math.round(Math.min(VB_H, Math.max(0, py + drag.dy))),
   ];
   draw();
 });
@@ -254,10 +283,11 @@ $("copy").onclick = async () => {
 };
 $("reset").onclick = () => {
   if (!confirm("Rimettere tutte le posizioni ai valori di partenza?")) return;
-  pos = defaults(); localStorage.removeItem(STORE); last = null; draw();
+  localStorage.removeItem(STORE); rebuildPos(); last = null; draw();
 };
 
 draw();
+syncFromGame();
 </script>
 </body>
 </html>

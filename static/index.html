@@ -400,7 +400,7 @@
 
   <div id="gameScreen">
     <div id="mapWrap">
-      <svg id="map" viewBox="0 0 1240 700" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="map" viewBox="0 0 1240 919" xmlns="http://www.w3.org/2000/svg"></svg>
       <div id="mapHud"></div>
       <div id="mapCtl">
         <button id="zoomIn" title="Zoom avanti">＋</button>
@@ -458,29 +458,30 @@
 const CLIENT_VERSION = "index-v9-map-first";
 
 /* ============ coordinate mappa (centri tile) ============ */
-/* coordinate tarate sulla plancia reale (static/map.jpg), viewBox 1240x700 */
+/* coordinate tarate sulla plancia reale (static/board.jpg), sul rettangolo
+   1240x700 della mappa; sotto, fino a 919, c'e' il tracciato punteggi */
 const PROV_XY = {
-  BRITANNIA:[141,71], GERMANIA_INFERIOR:[346,36], BELGICA:[280,144],
-  LUGDUNENSE:[339,215], RAETIA:[422,107], NORICUM:[524,97],
-  PANNONIA:[710,131], DACIA:[668,43], MOESIA:[769,77],
-  AQUITANIA:[200,268], NARBONENSIS:[277,294], CISALPINA:[430,227],
+  BRITANNIA:[165,72], GERMANIA_INFERIOR:[275,43], BELGICA:[294,166],
+  LUGDUNENSE:[304,232], RAETIA:[427,132], NORICUM:[531,121],
+  PANNONIA:[710,132], DACIA:[668,43], MOESIA:[769,77],
+  AQUITANIA:[213,269], NARBONENSIS:[287,297], CISALPINA:[430,227],
   ILLIRIA:[531,199], DALMAZIA:[631,181], THRACIA:[794,190],
-  GALICIA:[108,415], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
-  BAETICA:[171,555], ITALIA:[463,292], CORSICA:[415,338],
-  SARDINIA:[432,408], SICILIA:[572,449], BALEARES:[279,472],
-  EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
+  GALICIA:[119,414], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
+  BAETICA:[178,558], ITALIA:[474,295], CORSICA:[432,343],
+  SARDINIA:[439,413], SICILIA:[572,449], BALEARES:[302,463],
+  EPIRUS:[677,300], MACEDONIA:[724,253], ACHAIA:[749,351],
   CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146],
-  PONTO:[1084,67], GALATIA:[975,200], CAPPADOCIA:[1078,181],
-  CILICIA:[983,252], CIPRO:[1019,311], SYRIA:[1141,331],
-  JUDEA:[1143,455], ARABIA:[1196,446], ARMENIA:[1191,200],
-  MESOPOTAMIA:[1187,291], MAURETANIA:[308,630], NUMIDIA:[401,600],
-  AFRICA:[489,562], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
+  PONTO:[1084,67], GALATIA:[967,205], CAPPADOCIA:[1078,181],
+  CILICIA:[984,261], CIPRO:[1012,306], SYRIA:[1134,329],
+  JUDEA:[1144,456], ARABIA:[1220,454], ARMENIA:[1191,200],
+  MESOPOTAMIA:[1178,294], MAURETANIA:[308,630], NUMIDIA:[401,600],
+  AFRICA:[496,555], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
 };
 const SEA_XY = {
-  BRITANNICUS:[69,165], CANTABRICUM:[75,291], IBERICUM:[67,637],
+  BRITANNICUS:[69,165], CANTABRICUM:[72,261], IBERICUM:[67,637],
   BALEARICUM:[350,511], SINUS_GALLICUS:[353,383], TYRRENUM:[521,394],
-  HADRIATICUM:[576,271], IONIUM:[730,452], AEGEUM:[857,351],
-  CRETICUM:[965,425], PONTUS_EUXINUS:[864,70], SYRTIS:[615,549],
+  HADRIATICUM:[576,271], IONIUM:[754,479], AEGEUM:[857,351],
+  CRETICUM:[930,454], PONTUS_EUXINUS:[864,70], SYRTIS:[581,506],
 };
 const PIP_R = 15;
 /* gettoni-nave: un quadrato per giocatore presente nel mare, dentro un
@@ -601,11 +602,13 @@ function buildMap(m) {
   const svg = $("map");
   svg.innerHTML = "";
   const gBg = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g");
-  svg.append(gBg, gSeas, gProv);
+  const gGoal = svgEl("g", { id:"trkGoal" }), gPawns = svgEl("g", { id:"trkPawns" });
+  svg.append(gBg, gSeas, gProv, gGoal, gPawns);
 
-  // sfondo: la plancia reale (nomi e confini gia' stampati sull'immagine)
+  // sfondo: la plancia reale intera, mappa + tracciato punteggi attaccati
+  // come sul cartone (nomi e confini gia' stampati sull'immagine)
   gBg.append(svgEl("image", {
-    href: "/map.jpg", x:0, y:0, width:VB_FULL.w, height:VB_FULL.h,
+    href: "/board.jpg", x:0, y:0, width:VB_FULL.w, height:VB_FULL.h,
     preserveAspectRatio: "none",
   }));
 
@@ -642,8 +645,61 @@ function buildMap(m) {
   mapBuilt = true;
 }
 
+/* ============ tracciato punteggi (la striscia in fondo alla plancia) ============
+   e' parte della stessa immagine di sfondo: le pedine stanno nello stesso SVG
+   della mappa, cosi' zoom e pan muovono tutto insieme.
+   geometria misurata sulla foto: 41 caselle (0..XL), passo costante */
+const TRK = { x0: 35.5, pitch: 29.22, cells: 40, top: 760, bottom: 881 };
+const trkX = i => TRK.x0 + TRK.pitch * Math.max(0, Math.min(TRK.cells, i));
+
+function renderScoreTrack(st) {
+  // casella dell'obiettivo: un bordo evidenziato, come segnare la meta'
+  const goal = $("trkGoal");
+  goal.innerHTML = "";
+  const tgt = st.settings && st.settings.targetScore;
+  if (tgt > 0 && tgt <= TRK.cells) {
+    goal.append(svgEl("rect", {
+      x: trkX(tgt) - 13, y: TRK.top - 2, width: 26, height: TRK.bottom - TRK.top + 4, rx: 4,
+      fill: "none", stroke: "#ffd75e", "stroke-width": 3, opacity: 0.95,
+    }));
+  }
+
+  // una pedina per giocatore sulla casella del suo punteggio; chi condivide
+  // la casella si impila (le caselle sono alte, ci stanno tutti)
+  const pawns = $("trkPawns");
+  pawns.innerHTML = "";
+  const byCell = {};
+  for (const p of st.players || []) {
+    const i = Math.max(0, Math.min(TRK.cells, p.score || 0));
+    (byCell[i] = byCell[i] || []).push(p);
+  }
+  for (const [cell, list] of Object.entries(byCell)) {
+    const cx = trkX(Number(cell));
+    list.forEach((p, k) => {
+      const cy = TRK.top + 15 + k * 20;  // fino a 6 giocatori nella stessa casella
+      const g = svgEl("g");
+      g.append(svgEl("circle", {
+        cx, cy, r: 9.5, fill: COLOR_HEX[p.color] || "#666",
+        stroke: "#2b1608", "stroke-width": 1.6,
+      }));
+      const t = svgEl("text", {
+        x: cx, y: cy + 0.5, "text-anchor":"middle", "dominant-baseline":"central",
+        "font-size": 11, "font-weight": 700, fill: "#fff",
+        stroke: "#2b1608", "stroke-width": 2, "paint-order": "stroke",
+      });
+      t.textContent = String(p.score || 0);
+      g.append(t);
+      const tip = svgEl("title", {});
+      tip.textContent = `${p.name}: ${p.score || 0} punti`;
+      g.append(tip);
+      pawns.append(g);
+    });
+  }
+}
+
 /* ============ pan & zoom mappa (dita e mouse) ============ */
-const VB_FULL = { x: 0, y: 0, w: 1240, h: 700 };
+/* la plancia intera: mappa (0..700) + tracciato punteggi (700..919) */
+const VB_FULL = { x: 0, y: 0, w: 1240, h: 919 };
 const VB = { ...VB_FULL };
 let dragSuppressClick = false;
 
@@ -1041,6 +1097,7 @@ function render() {
   renderMapHud(st, tp);
 
   renderMapState(st);
+  renderScoreTrack(st);
   renderPlayers(st);
   renderActions(st);
   renderCombat(st);
