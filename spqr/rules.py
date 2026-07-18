@@ -315,14 +315,14 @@ def calc_land_reinforcements(gs: Dict[str, Any], owner_color: str) -> int:
 
 def build_deck() -> list[dict]:
     """
-    Mazzo di 55 carte (§1.6). La distribuzione esatta dei simboli non è
-    indicata nel regolamento: usiamo 14/14/14/13 come approssimazione.
+    Mazzo di 55 carte (§1.6), distribuzione presa dal mazzo fisico:
+    25 legionari, 15 stendardi (vessilli), 10 triremi, 5 centri di potere (arene).
     """
     symbols = (
-        ["LEGIONARIO"] * 14
-        + ["TRIREME"] * 14
-        + ["VESSILLO"] * 14
-        + ["ARENA"] * 13
+        ["LEGIONARIO"] * 25
+        + ["VESSILLO"] * 15
+        + ["TRIREME"] * 10
+        + ["ARENA"] * 5
     )
     random.shuffle(symbols)
     return [{"symbol": s} for s in symbols]
