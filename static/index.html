@@ -220,6 +220,28 @@
     .pcHalo.off, .pcIcon.off { display: none; }
     .pcIcon { font-size: 14px; pointer-events: none; }
 
+    /* freccia d'attacco: il collegamento attaccante→difensore disegnato sulla
+       plancia, come in RISK II */
+    .atkLine { stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+    .atkLine.pending { stroke-dasharray: 14 7; animation: atkDash .7s linear infinite; }
+    @keyframes atkDash { to { stroke-dashoffset: -21; } }
+    .atkHead { filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+    .atkDice { cursor: pointer; }
+    .atkDice.bad { cursor: default; }
+    .atkDice.bad circle { stroke: #ff8a8a; }
+    .atkDice circle { stroke: #0b111a; stroke-width: 2; }
+    .atkDice text {
+      font-size: 14px; font-weight: 700; fill: #fff;
+      stroke: #0b111a; stroke-width: .8px; paint-order: stroke; pointer-events: none;
+    }
+    .atkFx { pointer-events: none; }
+    .atkFx rect { fill: rgba(11,17,26,.88); stroke: var(--accent); stroke-width: 1.5; }
+    .atkFx text { font-size: 17px; fill: #fff; }
+    .atkFx .atkWin {
+      font-size: 15px; font-weight: 700; fill: var(--accent);
+      stroke: #0b111a; stroke-width: 3px; paint-order: stroke;
+    }
+
     /* pan & zoom mappa */
     #map { touch-action: none; }
     #mapWrap { position: relative; }
@@ -601,9 +623,10 @@ function svgEl(tag, attrs={}) {
 function buildMap(m) {
   const svg = $("map");
   svg.innerHTML = "";
-  const gBg = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g");
+  const gBg = svgEl("g"), gSeas = svgEl("g"), gProv = svgEl("g"), gAtk = svgEl("g", { id:"atkLayer" });
   const gGoal = svgEl("g", { id:"trkGoal" }), gPawns = svgEl("g", { id:"trkPawns" });
-  svg.append(gBg, gSeas, gProv, gGoal, gPawns);
+  // la freccia d'attacco sta sopra tutto: e' lei a dire cosa sta succedendo
+  svg.append(gBg, gSeas, gProv, gGoal, gPawns, gAtk);
 
   // sfondo: la plancia reale intera, mappa + tracciato punteggi attaccati
   // come sul cartone (nomi e confini gia' stampati sull'immagine)
@@ -651,6 +674,147 @@ function buildMap(m) {
    geometria misurata sulla foto: 41 caselle (0..XL), passo costante */
 const TRK = { x0: 35.5, pitch: 29.22, cells: 40, top: 760, bottom: 881 };
 const trkX = i => TRK.x0 + TRK.pitch * Math.max(0, Math.min(TRK.cells, i));
+
+/* ============ freccia d'attacco sulla mappa (stile RISK II) ============
+   Il collegamento fra attaccante e difensore si vede sulla plancia invece che
+   leggerlo come testo nel pannello: l'occhio non deve staccarsi dalla mappa.
+   Il badge coi dadi e' cliccabile e cicla 1→2→3. */
+const ATK_FX_MS = 5000;
+
+/* Dadi ammessi in un attacco terrestre (§10.5): il difensore tira sempre il
+   massimo che puo', min(3, sue legioni), e l'attaccante non puo' usarne di
+   meno. Se il minimo supera il massimo disponibile, l'attacco e' impossibile. */
+function attackDiceRange(fromId, toId) {
+  const min = Math.min(3, prov(toId).legions);
+  const max = Math.min(3, prov(fromId).legions - 1);
+  return { min, max, ok: max >= min };
+}
+const clampAtkDice = (fromId, toId) => {
+  const r = attackDiceRange(fromId, toId);
+  return Math.max(r.min, Math.min(r.max, valNum("atkDice", r.max)));
+};
+let combatFx = null;      // {t, from, to, rolls, attacker, defender, conquered}
+let combatFxTimer = null;
+
+/* accorcia il segmento agli estremi per non coprire i gettoni */
+function arrowPoints(a, b, trim) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  return {
+    x1: a[0] + ux * trim, y1: a[1] + uy * trim,
+    x2: b[0] - ux * trim, y2: b[1] - uy * trim,
+    ux, uy, len,
+  };
+}
+
+function drawArrow(g, from, to, color, opts = {}) {
+  const a = PROV_XY[from], b = PROV_XY[to];
+  if (!a || !b) return null;
+  const p = arrowPoints(a, b, PIP_R + 6);
+  if (p.len < PIP_R * 2) return null;
+
+  const HEAD = 15;
+  // la punta e' un triangolo disegnato a mano: niente <marker>, che eredita
+  // male il colore e scala in modo imprevedibile dentro la viewBox
+  const hx = p.x2, hy = p.y2;
+  const bx = hx - p.ux * HEAD, by = hy - p.uy * HEAD;
+  const nx = -p.uy, ny = p.ux;
+
+  g.append(svgEl("line", {
+    class: "atkLine" + (opts.pending ? " pending" : ""),
+    x1: p.x1, y1: p.y1, x2: bx, y2: by, stroke: color,
+  }));
+  g.append(svgEl("polygon", {
+    class: "atkHead", fill: color,
+    points: `${hx},${hy} ${bx + nx * HEAD * 0.55},${by + ny * HEAD * 0.55} ${bx - nx * HEAD * 0.55},${by - ny * HEAD * 0.55}`,
+  }));
+  return { mx: (p.x1 + hx) / 2, my: (p.y1 + hy) / 2 };
+}
+
+function renderAttackArrow(st) {
+  const g = $("atkLayer");
+  if (!g) return;
+  g.innerHTML = "";
+
+  const ph = st.turn.phase;
+  const aiming = ph === "LAND_ATTACKS" && !st.pending.occupation
+    && isMyTurn() && ui.sel.from && ui.sel.to;
+  // stessa coppia appena combattuta e ancora selezionata: una freccia sola,
+  // con i dadi dell'esito sopra e il badge di mira al centro, cosi' si puo'
+  // rilanciare subito senza aspettare che l'effetto svanisca
+  const samePair = aiming && combatFx && combatFx.from === ui.sel.from && combatFx.to === ui.sel.to;
+
+  if (combatFx && combatFx.from && combatFx.to && !samePair) {
+    const c = COLOR_HEX[combatFx.attacker] || "#ccc";
+    const m = drawArrow(g, combatFx.from, combatFx.to, c);
+    if (m) drawCombatFx(g, m, combatFx);
+  }
+
+  if (!aiming) return;
+
+  const col = COLOR_HEX[myColor()] || "#ccc";
+  const mid = drawArrow(g, ui.sel.from, ui.sel.to, col, { pending: true });
+  if (!mid) return;
+  if (samePair) drawCombatFx(g, mid, combatFx);
+
+  const rg = attackDiceRange(ui.sel.from, ui.sel.to);
+  const badge = svgEl("g", { class: "atkDice" + (rg.ok ? "" : " bad") });
+  badge.append(svgEl("circle", { cx: mid.mx, cy: mid.my, r: 15, fill: rg.ok ? col : "#7a2c2c" }));
+  const t = svgEl("text", { x: mid.mx, y: mid.my + 1, "text-anchor":"middle", "dominant-baseline":"central" });
+  const tip = svgEl("title", {});
+  if (rg.ok) {
+    const dice = clampAtkDice(ui.sel.from, ui.sel.to);
+    t.textContent = `${dice}🎲`;
+    tip.textContent = rg.min === rg.max
+      ? `${dice} dadi (obbligati) · tocca ancora ${prov(ui.sel.to).name} per attaccare`
+      : `${dice} dadi (tocca per cambiare, ${rg.min}-${rg.max}) · tocca ancora ${prov(ui.sel.to).name} per attaccare`;
+    // tocco sul badge: cicla i dadi dentro i valori ammessi, senza pannello
+    badge.addEventListener("click", ev => {
+      ev.stopPropagation();
+      ui.vals.atkDice = dice >= rg.max ? rg.min : dice + 1;
+      render();
+    });
+  } else {
+    t.textContent = "✕";
+    tip.textContent = `Servono almeno ${rg.min + 1} legioni in ${prov(ui.sel.from).name}: ` +
+      `il difensore tira ${rg.min} dadi e non puoi usarne di meno (§10.5)`;
+  }
+  badge.append(t, tip);
+  g.append(badge);
+}
+
+/* dadi dell'ultimo tiro, sopra la freccia */
+function drawCombatFx(g, mid, fx) {
+  const last = fx.rolls[fx.rolls.length - 1];
+  if (!last) return;
+  const atk = (last.att || []).map(v => DIE_FACE[v-1] || "?").join("");
+  const def = (last.def || []).map(v => DIE_FACE[v-1] || "?").join("");
+  const box = svgEl("g", { class: "atkFx" });
+  const txt = `${atk} ⚔ ${def}`;
+  const w = Math.max(96, txt.length * 11);
+  box.append(svgEl("rect", { x: mid.mx - w/2, y: mid.my - 40, width: w, height: 30, rx: 8 }));
+  const t = svgEl("text", { x: mid.mx, y: mid.my - 25, "text-anchor":"middle", "dominant-baseline":"central" });
+  t.textContent = txt;
+  box.append(t);
+  if (fx.conquered) {
+    const c = svgEl("text", { class:"atkWin", x: mid.mx, y: mid.my + 30, "text-anchor":"middle", "dominant-baseline":"central" });
+    c.textContent = "CONQUISTA!";
+    box.append(c);
+  }
+  g.append(box);
+}
+
+/* registra l'esito quando arriva uno stato con un combattimento nuovo */
+function noteCombatFx(st) {
+  const lc = st.lastCombat;
+  if (!lc || lc.kind !== "land" || !lc.rolls || !lc.rolls.length) return;
+  if (combatFx && combatFx.t === lc.t) return;
+  combatFx = { t: lc.t, from: lc.from, to: lc.to, rolls: lc.rolls,
+    attacker: lc.attacker, defender: lc.defender, conquered: lc.conquered };
+  clearTimeout(combatFxTimer);
+  combatFxTimer = setTimeout(() => { combatFx = null; renderAttackArrow(lastState); }, ATK_FX_MS);
+}
 
 function renderScoreTrack(st) {
   // casella dell'obiettivo: un bordo evidenziato, come segnare la meta'
@@ -1042,7 +1206,19 @@ function onProvClick(id) {
   }
   else if (ph === "LAND_ATTACKS" && !lastState.pending.occupation) {
     if (isMine(id)) { ui.sel.from = id; ui.sel.to = null; }
-    else if (isEnemy(id) && ui.sel.from && prov(ui.sel.from).adj_land.includes(id)) ui.sel.to = id;
+    else if (isEnemy(id) && ui.sel.from && prov(ui.sel.from).adj_land.includes(id)) {
+      // primo tocco: miri, e compare la freccia. secondo tocco sullo stesso
+      // bersaglio: attacchi, senza passare dal pannello
+      if (ui.sel.to === id) {
+        if (attackDiceRange(ui.sel.from, id).ok) {
+          sendCmd("land_attack_roll", {
+            from: ui.sel.from, to: id, attackDice: clampAtkDice(ui.sel.from, id),
+          });
+        }
+      } else {
+        ui.sel.to = id;
+      }
+    }
   }
   else if (ph === "STRATEGIC_MOVE" && isMine(id)) {
     if (id === ui.sel.from) { ui.sel.from = null; ui.sel.to = null; }   // ri-click: deseleziona
@@ -1098,6 +1274,8 @@ function render() {
 
   renderMapState(st);
   renderScoreTrack(st);
+  noteCombatFx(st);
+  renderAttackArrow(st);
   renderPlayers(st);
   renderActions(st);
   renderCombat(st);
@@ -1312,14 +1490,21 @@ function sliderRow(labelTxt, key, def, min, max) {
   return el("div", { class:"sliderRow" }, el("label", {}, labelTxt), rng, lbl);
 }
 
-/* scelta dadi 1..max come bottoni grandi */
-function diceBtns(key, maxD) {
-  const cur = Math.max(1, Math.min(maxD, valNum(key, maxD)));
+/* scelta dadi come bottoni grandi. minD serve agli attacchi terrestri: sotto
+   il numero di dadi del difensore il server rifiuta il tiro (§10.5), quindi
+   quei bottoni vanno spenti invece di far rimbalzare il comando */
+function diceBtns(key, maxD, minD = 1) {
+  const cur = Math.max(minD, Math.min(maxD, valNum(key, maxD)));
   ui.vals[key] = cur;
   const wrap = el("div", { class:"segBtns" });
   for (let d = 1; d <= maxD; d++) {
-    wrap.append(el("button", { class: d === cur ? "on" : "",
-      onclick: () => { ui.vals[key] = d; render(); } }, `${d} 🎲`));
+    const b = el("button", { class: d === cur ? "on" : "",
+      onclick: () => { ui.vals[key] = d; render(); } }, `${d} 🎲`);
+    if (d < minD) {
+      b.disabled = true;
+      b.title = `Il difensore tira ${minD} dadi: non puoi usarne di meno (§10.5)`;
+    }
+    wrap.append(b);
   }
   return wrap;
 }
@@ -1575,11 +1760,16 @@ function renderActions(st) {
       add(hint("Attacchi terrestri: tocca una tua provincia (con 2+ legioni), poi una nemica adiacente."));
       if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
       if (ui.sel.from && ui.sel.to) {
-        const maxD = Math.min(3, prov(ui.sel.from).legions - 1);
-        add(row(el("label", { style:"align-self:center" }, "Dadi:"), diceBtns("atkDice", maxD)));
-        add(row(actionBtn("Attacca ⚔️", () => {
-          sendCmd("land_attack_roll", { from: ui.sel.from, to: ui.sel.to, attackDice: valNum("atkDice", maxD) });
-        }, "primary")));
+        const rg = attackDiceRange(ui.sel.from, ui.sel.to);
+        if (!rg.ok) {
+          add(hint(`Attacco impossibile: ${prov(ui.sel.to).name} difende con ${rg.min} dadi e ` +
+            `da ${prov(ui.sel.from).name} puoi tirarne al massimo ${rg.max} (§10.5).`));
+        } else {
+          add(row(el("label", { style:"align-self:center" }, "Dadi:"), diceBtns("atkDice", rg.max, rg.min)));
+          add(row(actionBtn("Attacca ⚔️", () => {
+            sendCmd("land_attack_roll", { from: ui.sel.from, to: ui.sel.to, attackDice: clampAtkDice(ui.sel.from, ui.sel.to) });
+          }, "primary")));
+        }
       }
       add(row(actionBtn("Fine attacchi", () => sendCmd("end_attacks"))));
     }
