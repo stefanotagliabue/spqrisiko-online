@@ -40,9 +40,6 @@
       flex: 0 0 auto;
     }
     header h1 { font-size: 18px; margin: 0; color: var(--accent); letter-spacing: 1px; }
-    /* in partita l'header sparisce: stanza, fase e turno stanno nella console,
-       debug e reset dentro Menu. Sono ~48px di altezza restituiti alla mappa. */
-    body.playing header { display: none; }
     .chip {
       background: var(--panel2); border: 1px solid var(--line); border-radius: 20px;
       padding: 3px 12px; font-size: 13px; white-space: nowrap;
@@ -75,80 +72,18 @@
     button.danger { border-color: #a33; color: #f2b3b3; }
     button:disabled { opacity: .45; cursor: default; }
 
-    /* ============ layout partita: cornice a "U" stile RISK II ============
-       La plancia sta in un rettangolo 1240x919 (rapporto 1.35), piu' "quadrato"
-       di qualsiasi schermo: su un 16:9 avanza spazio ai lati che la mappa non
-       userebbe comunque. La console in basso e i due montanti occupano proprio
-       quello, e sono FISSI: la mappa non ci finisce mai sotto. */
+    /* layout partita */
     #gameScreen { flex: 1; display: none; min-height: 0; }
-    #gameScreen.on {
-      display: grid; min-width: 0;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      grid-template-rows: minmax(0, 1fr) auto;
-      grid-template-areas: "railL map railR" "console console console";
-    }
-    #mapArea { grid-area: map; position: relative; min-width: 0; min-height: 0; padding: 6px; }
+    #gameScreen.on { display: flex; }
+    #mapWrap { flex: 1; min-width: 0; padding: 6px; }
     #map { width: 100%; height: 100%; display: block; }
-
-    /* Montanti: di default NON esistono come riquadro. Attenzione, qui serve
-       display:contents e non display:none: con none le sezioni figlie non
-       vengono renderizzate affatto e i fogli a comparsa si aprirebbero a 0x0.
-       Con contents il montante sparisce ma le figlie restano disponibili, e
-       sono loro a decidere se mostrarsi (come foglio position:fixed). */
-    #railL, #railR { display: contents; }
-    #railL { grid-area: railL; border-right: 1px solid var(--line); }
-    #railR { grid-area: railR; border-left: 1px solid var(--line); }
-    #railL > section, #railR > section { display: none; }
-    #railL > section, #railR > section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
-    h3.secTitle {
-      margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
-      letter-spacing: 1px; color: var(--muted);
+    aside {
+      width: 340px; flex: 0 0 340px; background: var(--panel);
+      border-left: 1px solid var(--line); display: flex; flex-direction: column;
+      overflow-y: auto;
     }
-
-    /* ---- console ---- */
-    /* altezza FISSA: il log al centro scorre dentro di se', non fa crescere la
-       console. Senza questo il contenuto le fa mangiare mezzo schermo. */
-    #console {
-      grid-area: console; background: var(--panel); border-top: 1px solid var(--line);
-      display: flex; align-items: stretch; gap: 10px;
-      height: calc(148px + env(safe-area-inset-bottom));
-      padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-      min-height: 0;
-    }
-    #console > * { min-width: 0; }
-    #csMe { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; justify-content: space-between; }
-    #csMe .who { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; }
-    #csMe .who .dot { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 14px; }
-    #csMe .who .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
-    #csMe .sub { font-size: 11px; color: var(--muted); }
-    #csMe.mine .who { color: var(--accent); }
-    .csIcons { display: flex; gap: 5px; }
-    .csIcons button { width: 38px; height: 34px; padding: 0; font-size: 17px; }
-    .csIcons button.on { border-color: var(--accent); background: rgba(217,165,63,.18); }
-
-    /* il log e' il centro della console, come in RISK II */
-    #csLog {
-      flex: 1 1 auto; background: var(--bg); border: 1px solid var(--line);
-      border-radius: 8px; padding: 6px 9px; overflow-y: auto;
-      font-family: ui-monospace, Consolas, monospace; font-size: 11.5px;
-      line-height: 1.5; color: var(--muted); white-space: pre-wrap;
-    }
-    #csLog .me { color: var(--text); }
-
-    #csPlayers { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; font-size: 12px; }
-    #csPlayers .pRow { padding: 1px 0; gap: 6px; font-size: 12px; }
-    #csPlayers .pRow .nm { max-width: 92px; }
-
-    #csRight { flex: 0 0 auto; display: flex; align-items: stretch; gap: 8px; }
-    #csRight .stack { display: flex; flex-direction: column; gap: 5px; justify-content: center; }
-    #csRight .stack button { font-size: 12px; padding: 6px 10px; }
-    #btnDone {
-      min-width: 108px; font-size: 15px; font-weight: 700; line-height: 1.15;
-      border-radius: 10px; background: var(--accent); color: #1c1607; border: none;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    }
-    #btnDone .lbl { font-size: 11px; font-weight: 600; opacity: .75; text-transform: uppercase; letter-spacing: .5px; }
-    #btnDone:disabled { background: var(--panel2); color: var(--muted); opacity: 1; }
+    aside section { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    aside h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 
     .pRow { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; }
     .pRow .dot { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
@@ -181,6 +116,11 @@
     .combatHead { font-size: 13px; margin-bottom: 4px; }
     .combatHead .win { color: var(--accent); font-weight: 700; }
     #combatRolls { max-height: 130px; overflow-y: auto; }
+    #logBox {
+      font-family: ui-monospace, Consolas, monospace; font-size: 11.5px;
+      color: var(--muted); max-height: 200px; overflow-y: auto; white-space: pre-wrap;
+    }
+    #logBox .me { color: var(--text); }
 
     #toast {
       position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
@@ -282,6 +222,30 @@
 
     /* pan & zoom mappa */
     #map { touch-action: none; }
+    #mapWrap { position: relative; }
+    #mapCtl {
+      position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px;
+      z-index: 5;
+    }
+    #mapCtl button {
+      width: 40px; height: 40px; padding: 0; font-size: 20px; border-radius: 10px;
+      background: rgba(26,36,52,.9);
+    }
+
+    /* indicatore di fase/turno minimale sovrapposto alla mappa: l'occhio non
+       deve staccarsi dalla mappa per sapere "che fase è" o di chi è il turno */
+    #mapHud {
+      position: absolute; left: 8px; top: 8px; z-index: 5; pointer-events: none;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+      max-width: 62%;
+    }
+    #mapHud .chip {
+      background: rgba(16,23,34,.82); border-color: var(--line);
+      backdrop-filter: blur(2px);
+    }
+    #mapHud .turnLine { display: flex; align-items: center; gap: 6px; }
+    #mapHud .turnLine .dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 10px; }
+    #mapHud .turnLine.mine .chip { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 
     /* slider e bottoni segmentati (touch-friendly) */
     .sliderRow { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
@@ -298,6 +262,16 @@
       background: var(--panel2); border: 1px solid var(--accent); border-radius: 8px;
       padding: 5px 9px; margin: 2px; font-size: 13px; cursor: pointer;
     }
+
+    /* bottoni flottanti (solo telefono) */
+    .fab {
+      width: 50px; height: 50px; border-radius: 50%; padding: 0; font-size: 22px;
+      background: rgba(26,36,52,.92); border: 1px solid var(--line);
+      box-shadow: 0 3px 12px rgba(0,0,0,.45);
+    }
+    #fabL { position: fixed; left: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); display: none; gap: 10px; z-index: 50; }
+    #fabFs { position: fixed; right: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); display: none; z-index: 50; }
+    #actionsTab { display: none; }
 
     /* badge punti vittoria correnti nel pannello giocatori */
     .vpBadges { font-size: 11px; color: var(--accent); margin: 0 0 4px 20px; }
@@ -320,57 +294,83 @@
     #tileMenu.on { display: flex; }
     #tileMenu button { white-space: nowrap; text-align: left; }
 
-    /* ============ fogli a comparsa ============
-       Le sezioni dei montanti diventano fogli quando i montanti non ci sono.
-       Sono position:fixed, quindi il montante puo' passare a display:contents
-       senza portarsele dietro nel flusso della griglia. */
-    #secPlayers { display: none; }
-    #gameScreen section.sheet {
-      display: block; position: fixed; z-index: 47;
-      /* --consoleH la misura il JS: il foglio si appoggia sopra la console */
-      left: 8px; right: 8px; bottom: calc(var(--consoleH, 96px) + 8px);
-      background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-      max-height: 58vh; overflow-y: auto; padding: 10px 14px;
-      box-shadow: 0 8px 30px rgba(0,0,0,.6);
-    }
+    /* layout telefono: mappa a tutto schermo, pannelli a comparsa
+       (vale anche per telefoni orizzontali larghi: schermo basso = telefono) */
+    @media (max-width: 820px), (max-height: 500px) {
+      header { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+      header h1 { font-size: 15px; }
+      .chip { font-size: 12px; padding: 2px 9px; }
+      button { padding: 12px 12px; font-size: 15px; }
 
-    /* ============ quando compaiono i montanti ============
-       Serve sia spazio in larghezza assoluta sia uno schermo piu' largo di
-       quanto la plancia (1.35) richieda: su una finestra 600x400 il rapporto
-       basterebbe ma non resterebbe mappa. */
-    @media (min-width: 1080px) and (min-aspect-ratio: 3/2) {
-      #railL, #railR {
-        display: flex; flex-direction: column; width: 216px;
-        background: var(--panel); overflow-y: auto;
+      #gameScreen.on { flex-direction: column; position: relative; }
+      #mapWrap { flex: 1; min-height: 0; padding: 2px; }
+      /* in alto a destra: il foglio azioni in basso li coprirebbe */
+      #mapCtl { top: 8px; right: 8px; bottom: auto; }
+      #mapCtl button { width: 44px; height: 44px; }
+      #gameScreen.on ~ #fabL { display: flex; }
+      #gameScreen.on ~ #fabFs { display: block; }
+
+      /* il pannello laterale sparisce: le sue sezioni diventano overlay */
+      aside { display: contents; }
+      aside section { background: var(--panel); }
+
+      /* azioni: overlay a comparsa come carte/giocatori, niente più lembo
+         visibile quando è chiuso: o c'è o non c'è */
+      #secActions, #secCards, #secPlayers, #secCombat, #secLog { display: none; }
+      #secActions.open {
+        display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 47;
+        border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+        max-height: 50vh; overflow-y: auto;
+        padding: 4px 14px calc(74px + env(safe-area-inset-bottom));
+        box-shadow: 0 -8px 28px rgba(0,0,0,.55);
       }
-      #railL > section, #railR > section { display: block; }
-      /* con i montanti visibili i fogli non servono e i loro bottoni spariscono */
-      #btnPanelActions, #btnPanelCards, #btnPanelCombat { display: none; }
-    }
 
-    /* ============ schermi bassi/stretti: console compatta ============ */
-    @media (max-width: 820px), (max-height: 560px) {
-      button { padding: 10px 12px; font-size: 14px; }
-      #mapArea { padding: 2px; }
-      #console {
-        gap: 6px; height: calc(74px + env(safe-area-inset-bottom));
-        padding: 6px 7px calc(6px + env(safe-area-inset-bottom));
+      #actionsTab {
+        display: block; position: fixed; left: 50%; transform: translateX(-50%);
+        bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 48;
+        transition: bottom .2s ease;
+        padding: 9px 18px; border-radius: 20px; font-size: 14px;
+        background: rgba(26,36,52,.94); box-shadow: 0 3px 14px rgba(0,0,0,.45);
       }
-      /* al centro resta il log, ma piu' basso: la mappa e' la protagonista */
-      #csLog { font-size: 11px; line-height: 1.4; }
-      #csMe .sub, #csPlayers { display: none; }
-      #csMe .who .nm { max-width: 84px; }
-      .csIcons button { width: 34px; height: 32px; font-size: 15px; }
-      #csRight .stack button { font-size: 11px; padding: 5px 7px; }
-      #btnDone { min-width: 84px; font-size: 13px; }
-      #btnDone .lbl { display: none; }
+      /* col foglio azioni aperto la tab sale sopra il suo bordo superiore:
+         resta sempre raggiungibile per richiuderlo */
+      #actionsTab.raised { bottom: calc(50vh + 8px); }
+
+      /* carte e giocatori: pannelli a comparsa dai bottoni in basso a sinistra */
+      #secCards.open, #secPlayers.open {
+        display: block; position: fixed; left: 8px; right: 8px;
+        bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 45;
+        border: 1px solid var(--line); border-radius: 14px;
+        max-height: 62vh; overflow-y: auto;
+        box-shadow: 0 8px 30px rgba(0,0,0,.6);
+      }
     }
 
-    /* telefono verticale: schermo strettissimo, via anche i comandi di vista
-       (restano il pinch sulla mappa e il tasto Menu) */
-    @media (max-width: 560px) {
-      #csRight .stack:first-child { display: none; }
-      .csIcons button { width: 32px; }
+    /* telefono orizzontale (fullscreen): azioni come cassetto a destra,
+       la mappa tiene tutta la larghezza */
+    @media (max-height: 500px) {
+      #secActions.open {
+        left: auto; right: 0; width: min(390px, 48vw);
+        max-height: 100vh; border-radius: 14px 0 0 0;
+        border-left: 1px solid var(--line);
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+      #secCards.open, #secPlayers.open {
+        left: 8px; right: auto; width: min(430px, 55vw);
+        bottom: calc(74px + env(safe-area-inset-bottom));
+        max-height: 80vh;
+      }
+      /* zoom in alto a sinistra: a destra c'è il cassetto azioni */
+      #mapCtl { top: 8px; right: auto; left: 8px; flex-direction: row; }
+      /* l'hud di fase/turno scende sotto la riga di zoom, che qui è a sinistra */
+      #mapHud { top: 56px; max-width: 50%; }
+      /* fullscreen accanto agli altri bottoni: il cassetto occupa l'angolo destro */
+      #fabFs { right: auto; left: 140px; }
+      #combatPop { top: 8%; }
+      /* la tab azioni si sposta dopo carte/giocatori/fullscreen (a sinistra
+         c'è il cassetto è sul lato destro, non la copre mai) */
+      #actionsTab { left: 200px; transform: none; }
+      #actionsTab.raised { bottom: calc(10px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -379,9 +379,11 @@
     <h1>SPQRisiKo</h1>
     <div id="connDot"></div>
     <span class="chip" id="roomChip">—</span>
+    <span class="chip" id="phaseChip">—</span>
+    <span class="chip" id="turnChip">—</span>
     <div class="spacer"></div>
-    <button id="btnDebugJoin" title="Client testuale di debug">debug</button>
-    <button id="btnResetJoin" class="danger">Reset partita</button>
+    <button id="btnDebug" title="Client testuale di debug">debug</button>
+    <button id="btnReset" class="danger">Reset partita</button>
   </header>
 
   <div id="joinScreen">
@@ -396,67 +398,52 @@
     </div>
   </div>
 
-  <!-- cornice a "U": montante sinistro, mappa, montante destro, console.
-       I montanti spariscono quando lo schermo non ha spazio laterale da
-       recuperare, e le loro sezioni diventano fogli a comparsa dalla console. -->
   <div id="gameScreen">
-    <div id="railL">
+    <div id="mapWrap">
+      <svg id="map" viewBox="0 0 1240 919" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="mapHud"></div>
+      <div id="mapCtl">
+        <button id="zoomIn" title="Zoom avanti">＋</button>
+        <button id="zoomOut" title="Zoom indietro">−</button>
+        <button id="zoomReset" title="Vista intera">⤢</button>
+      </div>
+    </div>
+    <aside>
+      <section id="secPlayers">
+        <h3>Giocatori</h3>
+        <div id="playersBox"></div>
+      </section>
+      <section id="secActions">
+        <h3>Azioni</h3>
+        <div id="actions"></div>
+      </section>
       <section id="secCombat">
-        <h3 class="secTitle">Combattimento</h3>
+        <h3>Combattimento</h3>
         <div id="combatBox"></div>
       </section>
       <section id="secCards">
-        <h3 class="secTitle">Le tue carte</h3>
+        <h3>Le tue carte</h3>
         <div id="cardsBox"></div>
       </section>
-    </div>
-
-    <div id="mapArea">
-      <svg id="map" viewBox="0 0 1240 919" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
-
-    <div id="railR">
-      <section id="secActions">
-        <h3 class="secTitle">Azioni</h3>
-        <div id="actions"></div>
+      <section id="secLog">
+        <h3>Log</h3>
+        <div id="logBox"></div>
       </section>
-    </div>
-
-    <div id="console">
-      <div id="csMe">
-        <div class="who"><span class="dot"></span><span class="nm">—</span></div>
-        <div class="sub">—</div>
-        <div class="csIcons">
-          <button id="btnPanelActions" title="Azioni">⚔️</button>
-          <button id="btnPanelCards" title="Le tue carte">🃏</button>
-          <button id="btnPanelCombat" title="Combattimento">🎲</button>
-          <button id="btnPanelPlayers" title="Giocatori e punti">👥</button>
-        </div>
-      </div>
-      <div id="csLog"></div>
-      <div id="csPlayers"></div>
-      <div id="csRight">
-        <div class="stack">
-          <button id="btnView" title="Vista intera">⤢ Vista</button>
-          <button id="btnZoomIn" title="Zoom avanti">＋</button>
-          <button id="btnZoomOut" title="Zoom indietro">−</button>
-        </div>
-        <div class="stack">
-          <button id="btnMenu">☰ Menu</button>
-          <button id="btnFs" title="Schermo intero">⛶</button>
-        </div>
-        <button id="btnDone" disabled><span class="lbl">—</span><span class="txt">Attendi</span></button>
-      </div>
-    </div>
-
-    <!-- fuori dalla U: sezione giocatori, solo come foglio a comparsa -->
-    <section id="secPlayers">
-      <h3 class="secTitle">Giocatori</h3>
-      <div id="playersBox"></div>
-    </section>
+    </aside>
   </div>
 
   <div id="tileMenu"></div>
+
+  <!-- tab fissa (telefono): mostra/nasconde il foglio azioni senza lasciarne
+       un lembo visibile sopra la mappa quando è chiuso -->
+  <button id="actionsTab" title="Mostra/nascondi azioni">⚔️ Azioni ▾</button>
+
+  <!-- bottoni flottanti (telefono): carte, giocatori, fullscreen -->
+  <div id="fabL">
+    <button class="fab" id="fabCards" title="Le tue carte">🃏</button>
+    <button class="fab" id="fabPlayers" title="Giocatori e punti">👥</button>
+  </div>
+  <button class="fab" id="fabFs" title="Schermo intero">⛶</button>
   <div id="combatPop"></div>
 
   <div id="toast"></div>
@@ -580,8 +567,6 @@ function connect(spectate = false) {
       $("roomChip").innerHTML = `stanza <b>${msg.room}</b>` + (isSpectator ? " · 👁 spettatore" : "");
       $("joinScreen").style.display = "none";
       $("gameScreen").classList.add("on");
-      document.body.classList.add("playing");
-      measureConsole();
       return;
     }
     if (msg.type === "state") { lastState = msg.state; render(); }
@@ -722,21 +707,16 @@ function applyVB() {
   $("map").setAttribute("viewBox", `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
 }
 
-const BOARD_AR = VB_FULL.w / VB_FULL.h;
+const MOBILE_MQ = window.matchMedia("(max-width: 820px), (max-height: 500px)");
 
-/* Con la cornice a U l'area della mappa e' un riquadro vero e proprio: la
-   viewBox deve seguire il SUO rapporto, non quello della finestra, altrimenti
-   la plancia finisce sotto la console o dentro i montanti. */
 function containerAspect() {
-  const r = $("mapArea").getBoundingClientRect();
-  return (r.width > 8 && r.height > 8) ? r.width / r.height : BOARD_AR;
-}
-
-/* la console ha altezza variabile (si compatta sugli schermi bassi): i fogli
-   a comparsa si appoggiano sopra di lei, quindi la misura serve al CSS */
-function measureConsole() {
-  const h = $("console").getBoundingClientRect().height;
-  document.documentElement.style.setProperty("--consoleH", `${Math.round(h)}px`);
+  // il "cover" a schermo intero vale solo nel layout telefono (stesso
+  // breakpoint del CSS mobile); su desktop resta l'aspect fisso della mappa,
+  // cosi' il comportamento con mappa intera visibile e bande laterali non
+  // cambia
+  if (!MOBILE_MQ.matches) return VB_FULL.w / VB_FULL.h;
+  const r = $("mapWrap").getBoundingClientRect();
+  return (r.width > 0 && r.height > 0) ? r.width / r.height : VB_FULL.w / VB_FULL.h;
 }
 
 function clampVB() {
@@ -758,24 +738,17 @@ function clampVB() {
   VB.y = yHi >= yLo ? Math.max(yLo, Math.min(yHi, VB.y)) : VB_FULL.y + (VB_FULL.h - VB.h) / 2;
 }
 
-/* true finche' l'utente non tocca lo zoom: fino a quel momento la vista di
-   default si riadatta da sola ai cambi di finestra (comparsa dei montanti,
-   rotazione del telefono). Appena zooma, la sua inquadratura viene rispettata. */
-let userZoomed = false;
-
 function fitVBDefault() {
-  userZoomed = false;
-  // vista di default: sempre TUTTA l'altezza della plancia. E' la regola che
-  // conta ora che il tracciato punteggi sta in fondo all'immagine: la
-  // classifica non deve mai finire tagliata fuori dalla vista iniziale.
-  // Se l'area e' piu' larga della plancia restano due bande laterali (ma i
-  // montanti se le sono gia' mangiate); se e' piu' stretta si vedono i
-  // fianchi tagliati e si scorre in orizzontale.
+  // vista di default: la mappa riempie lo schermo senza bordi vuoti,
+  // ritagliando la dimensione in eccesso rispetto all'aspect del contenitore
+  // (l'utente può comunque zoomare indietro fino a vedere tutta la mappa,
+  // vedi clampVB)
   const AR = containerAspect();
-  VB.h = VB_FULL.h;
-  VB.w = Math.max(200, VB_FULL.h * AR);
+  const w = Math.max(200, Math.min(VB_FULL.w, VB_FULL.h * AR));
+  VB.w = w;
+  VB.h = w / AR;
   VB.x = VB_FULL.x + (VB_FULL.w - VB.w) / 2;
-  VB.y = VB_FULL.y;
+  VB.y = VB_FULL.y + (VB_FULL.h - VB.h) / 2;
 }
 
 function svgCoords(clientX, clientY) {
@@ -785,7 +758,6 @@ function svgCoords(clientX, clientY) {
 }
 
 function zoomAt(cx, cy, factor) {
-  userZoomed = true;
   const w = VB.w * factor;
   VB.x = cx - (cx - VB.x) * (w / VB.w);
   VB.y = cy - (cy - VB.y) * (w / VB.w);
@@ -870,23 +842,12 @@ function initMapGestures() {
     zoomAt(p.x, p.y, e.deltaY > 0 ? 1.15 : 1 / 1.15);
   }, { passive: false });
 
+  $("zoomIn").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1 / 1.3);
+  $("zoomOut").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1.3);
+  $("zoomReset").onclick = () => { fitVBDefault(); applyVB(); };
 
-  /* i montanti compaiono e spariscono al variare della finestra: quando
-     succede l'area mappa cambia rapporto di colpo, quindi non basta ri-clampare
-     la viewBox, va rimisurata l'area (e la console, per i fogli) */
-  const onResize = () => {
-    measureConsole();
-    // se i montanti sono ricomparsi, un foglio rimasto aperto resterebbe a
-    // galleggiare sulla mappa invece di tornare nel suo montante
-    if ($("railR").getBoundingClientRect().width > 0) openSheet(null);
-    // senza questo, dopo un resize clampVB conserva la larghezza e accorcia
-    // l'altezza: la classifica in fondo alla plancia sparirebbe dalla vista
-    if (userZoomed) clampVB(); else fitVBDefault();
-    applyVB();
-  };
-  window.addEventListener("resize", onResize);
-  window.addEventListener("orientationchange", onResize);
-  if (window.ResizeObserver) new ResizeObserver(onResize).observe($("mapArea"));
+  window.addEventListener("resize", () => { clampVB(); applyVB(); });
+  window.addEventListener("orientationchange", () => { clampVB(); applyVB(); });
 }
 
 /* ============ helper di gioco ============ */
@@ -1126,15 +1087,19 @@ function render() {
   resetUiIfNeeded(st);
   if (!mapBuilt) { buildMap(st.map); fitVBDefault(); applyVB(); }
 
+  // header
+  $("phaseChip").innerHTML = `round <b>${st.turn.round}</b> · <b>${st.turn.phase}</b>`;
   const tp = turnPlayer();
-  renderConsoleMe(st, tp);
-  renderConsolePlayers(st);
+  $("turnChip").innerHTML = st.turn.phase === "LOBBY" ? "in attesa di giocatori"
+    : (tp ? (tp.id === myPlayerId ? "⭐ tocca a te" : `turno di <b>${tp.name}</b>`) : "—");
+
+  // stesso contenuto, sovrapposto alla mappa: niente sguardi fuori dalla mappa
+  renderMapHud(st, tp);
 
   renderMapState(st);
   renderScoreTrack(st);
   renderPlayers(st);
   renderActions(st);
-  applyDone(st);   // dopo renderActions: legge cosa hanno dichiarato i doneBtn
   renderCombat(st);
   renderCards(st);
   renderLog(st);
@@ -1149,41 +1114,19 @@ function render() {
   }
 }
 
-/* angolo sinistro della console: chi sei e cosa sta succedendo. E' il posto
-   dove in RISK II sta la pedina del giocatore. */
-function renderConsoleMe(st, tp) {
-  const box = $("csMe");
-  const mine = st.turn.phase !== "LOBBY" && tp && tp.id === myPlayerId;
-  box.classList.toggle("mine", !!mine);
-
-  const m = me();
-  const col = isSpectator ? null : (m && m.color);
-  box.querySelector(".dot").style.background = col ? COLOR_HEX[col] : "#555";
-  box.querySelector(".nm").textContent = isSpectator ? "👁 spettatore" : ((m && m.name) || "—");
-
-  const sub = st.turn.phase === "LOBBY"
-    ? "in attesa di giocatori"
-    : `round ${st.turn.round} · ${st.turn.phase}` +
-      (mine ? " · ⭐ tocca a te" : (tp ? ` · turno di ${tp.name}` : ""));
-  box.querySelector(".sub").textContent = sub;
-}
-
-/* striscia avversari: colore, nome, punti. I dettagli (badge VP, neutrali,
-   obiettivo) restano nel foglio Giocatori, qui serve il colpo d'occhio. */
-function renderConsolePlayers(st) {
-  const box = $("csPlayers");
+function renderMapHud(st, tp) {
+  const box = $("mapHud");
   box.innerHTML = "";
-  st.players.forEach((p, i) => {
-    const row = el("div", { class: "pRow" + (i === st.turn.turnIndex && st.turn.phase !== "LOBBY" ? " turn" : "") });
-    row.append(el("div", { class:"dot", style:`background:${p.color ? COLOR_HEX[p.color] : "#555"}` }));
-    row.append(el("span", { class:"nm" }, p.name + (p.id === myPlayerId ? " (tu)" : "")));
-    const bits = st.turn.phase === "LOBBY"
-      ? [p.ready ? "✅" : "⬜"]
-      : [`⭐${p.score}`, ...(p.eliminated ? ["💀"] : [])];
-    if (p.connected === false) bits.push("📴");
-    row.append(el("span", { class:"inf" }, bits.join(" ")));
-    box.append(row);
-  });
+  box.append(el("span", { class:"chip" }, `round ${st.turn.round} · ${st.turn.phase}`));
+  const mine = st.turn.phase !== "LOBBY" && tp && tp.id === myPlayerId;
+  const line = el("div", { class:"turnLine" + (mine ? " mine" : "") });
+  if (st.turn.phase !== "LOBBY" && tp && tp.color) {
+    line.append(el("div", { class:"dot", style:`background:${COLOR_HEX[tp.color] || "#555"}` }));
+  }
+  line.append(el("span", { class:"chip" },
+    st.turn.phase === "LOBBY" ? "in attesa di giocatori"
+      : (tp ? (mine ? "⭐ tocca a te" : `turno di ${tp.name}`) : "—")));
+  box.append(line);
 }
 
 function renderMapState(st) {
@@ -1348,32 +1291,6 @@ function actionBtn(label, fn, cls) {
   return el("button", { class: cls || "", onclick: fn }, label);
 }
 
-/* Bottone che conclude o fa avanzare la fase. Resta nel pannello Azioni
-   com'era, ma viene anche RISPECCHIATO sul FINE grande della console: se una
-   fase ne offre piu' di uno vince l'ultimo dichiarato, e comunque nel pannello
-   ci sono tutti, quindi nessuna azione diventa irraggiungibile. */
-let pendingDone = null;
-function doneBtn(label, fn, cls) {
-  pendingDone = { label, fn };
-  return actionBtn(label, fn, cls);
-}
-
-function applyDone(st) {
-  const b = $("btnDone");
-  const lbl = st.turn.phase === "LOBBY" ? "lobby" : st.turn.phase.toLowerCase().replace(/_/g, " ");
-  b.querySelector(".lbl").textContent = lbl;
-  if (pendingDone) {
-    b.disabled = false;
-    b.querySelector(".txt").textContent = pendingDone.label;
-    b.onclick = pendingDone.fn;
-  } else {
-    b.disabled = true;
-    b.onclick = null;
-    b.querySelector(".txt").textContent =
-      isSpectator ? "👁 guardi" : (isMyTurn() ? "sulla mappa" : "attendi");
-  }
-}
-
 function numInput(key, def, min, max) {
   const v = ui.vals[key] !== undefined ? ui.vals[key] : def;
   const inp = el("input", { type:"number", min, max, value:v, style:"width:70px",
@@ -1410,7 +1327,6 @@ function diceBtns(key, maxD) {
 function renderActions(st) {
   const box = $("actions");
   box.innerHTML = "";
-  pendingDone = null;   // lo ripopolano i doneBtn di questa fase
   const ph = st.turn.phase;
   if (isSpectator) {
     box.append(el("div", { class:"hint" }, "👁 Stai guardando la partita: nessuna azione disponibile."));
@@ -1424,16 +1340,12 @@ function renderActions(st) {
   if (ph === "LOBBY") {
     const m = me();
     add(hint(`Condividi il codice stanza. Servono 3-5 giocatori (siete in ${st.players.length}).`));
-    add(row(doneBtn(m && m.ready ? "Pronto ✅" : "Sono pronto", () => sendCmd("ready"))));
+    add(row(actionBtn(m && m.ready ? "Pronto ✅" : "Sono pronto", () => sendCmd("ready"))));
     const tsRow = row(el("label", {}, "Punti vittoria:"), numInput("targetScore", st.settings.targetScore, 5, 999));
     add(tsRow);
     const canStart = st.players.length >= 3 && st.players.every(p => p.ready);
-    const start = () => sendCmd("start_game", { targetScore: valNum("targetScore", st.settings.targetScore) });
-    const b = actionBtn("Avvia partita", start, "primary");
+    const b = actionBtn("Avvia partita", () => sendCmd("start_game", { targetScore: valNum("targetScore", st.settings.targetScore) }), "primary");
     b.disabled = !canStart;
-    // il FINE mostra "Avvia partita" solo quando si puo' davvero avviare:
-    // fino ad allora resta l'azione che serve a te, cioe' dichiararsi pronto
-    if (canStart) pendingDone = { label: "Avvia partita", fn: start };
     add(row(b));
     return;
   }
@@ -1464,7 +1376,7 @@ function renderActions(st) {
 
   if (ph === "SCORE") {
     add(hint("Inizio del tuo turno: calcola il punteggio e ricevi i rinforzi."));
-    add(row(doneBtn("Inizia rinforzi", () => sendCmd("reinforce_land_begin"), "primary")));
+    add(row(actionBtn("Inizia rinforzi", () => sendCmd("reinforce_land_begin"), "primary")));
     return;
   }
 
@@ -1514,16 +1426,12 @@ function renderActions(st) {
           actionBtn("−", () => { ui.placements[id]--; if (!ui.placements[id]) delete ui.placements[id]; render(); }));
         add(r);
       }
-      const place = () => {
+      const b = actionBtn(`Conferma piazzamento (+${placedTotal()})`, () => {
         sendCmd("reinforce_land_place", { placements: { ...ui.placements } });
         ui.placements = {};
-      };
-      const b = actionBtn(`Conferma piazzamento (+${placedTotal()})`, place, "primary");
+      }, "primary");
       b.disabled = remaining !== 0 || placedTotal() === 0 || violates;
       add(row(b));
-      // finche' hai legioni da piazzare questa e' l'azione della fase: senza,
-      // il FINE resterebbe spento e sembrerebbe rotto
-      if (!b.disabled) pendingDone = { label: `Conferma (+${placedTotal()})`, fn: place };
 
       // tris: carte sotto, mari e centro si scelgono toccando la mappa
       if (!st.turn.trisPlayed && m.cards.length >= 3) {
@@ -1577,7 +1485,7 @@ function renderActions(st) {
       actionBtn(ui.mode === "t2l" ? "⚓→🗡 (attivo)" : "Trireme → 2 legioni", () => { ui.mode = ui.mode === "t2l" ? null : "t2l"; ui.sel = {}; render(); }),
     ));
 
-    if (!inLand) add(row(doneBtn("Fine rinforzi", () => sendCmd("end_phase"), "primary")));
+    if (!inLand) add(row(actionBtn("Fine rinforzi", () => sendCmd("end_phase"), "primary")));
     return;
   }
 
@@ -1592,7 +1500,7 @@ function renderActions(st) {
         ui.sel = {};
       }, "primary")));
     }
-    add(row(doneBtn("Salta movimento", () => sendCmd("end_phase"))));
+    add(row(actionBtn("Salta movimento", () => sendCmd("end_phase"))));
     return;
   }
 
@@ -1617,7 +1525,7 @@ function renderActions(st) {
         }, "primary")));
       }
     }
-    add(row(doneBtn("Fine combattimenti navali", () => sendCmd("end_phase"))));
+    add(row(actionBtn("Fine combattimenti navali", () => sendCmd("end_phase"))));
     return;
   }
 
@@ -1645,7 +1553,7 @@ function renderActions(st) {
         ui.sel = {};
       }, "primary")));
     }
-    add(row(doneBtn("Fine attacchi via mare", () => sendCmd("end_phase"))));
+    add(row(actionBtn("Fine attacchi via mare", () => sendCmd("end_phase"))));
     return;
   }
 
@@ -1660,7 +1568,7 @@ function renderActions(st) {
         add(sliderRow("Legioni extra:", "occN", maxN, 1, maxN));
         add(row(actionBtn("Sposta", () => sendCmd("occupy_extra", { count: valNum("occN", maxN) }), "primary")));
       }
-      add(row(doneBtn("Fine attacchi", () => { ui.sel = {}; sendCmd("end_attacks"); })));
+      add(row(actionBtn("Fine attacchi", () => { ui.sel = {}; sendCmd("end_attacks"); })));
       add(hint("…oppure tocca la mappa per un altro attacco (chiude l'occupazione)."));
     }
     if (!occ) {
@@ -1673,7 +1581,7 @@ function renderActions(st) {
           sendCmd("land_attack_roll", { from: ui.sel.from, to: ui.sel.to, attackDice: valNum("atkDice", maxD) });
         }, "primary")));
       }
-      add(row(doneBtn("Fine attacchi", () => sendCmd("end_attacks"))));
+      add(row(actionBtn("Fine attacchi", () => sendCmd("end_attacks"))));
     }
     return;
   }
@@ -1703,7 +1611,7 @@ function renderActions(st) {
       else add(hint(`Da ${prov(ui.sel.from).name} non può partire nessuna legione (guarnigione minima §14.2).`));
       add(row(bMove));
     }
-    const bEnd = doneBtn("Fine turno", () => sendCmd("end_turn"));
+    const bEnd = actionBtn("Fine turno (nessuno spostamento)", () => sendCmd("end_turn"));
     bEnd.disabled = !!rb;
     if (rb) bEnd.title = "Devi prima riequilibrare una guarnigione di frontiera a 1 legione";
     add(row(bEnd));
@@ -1795,7 +1703,7 @@ function renderCards(st) {
 }
 
 function renderLog(st) {
-  const box = $("csLog");
+  const box = $("logBox");
   const myName = (me() || {}).name;
   box.innerHTML = "";
   (st.log || []).slice(-20).forEach(e => {
@@ -1815,54 +1723,30 @@ $("btnSpectate").onclick = () => {
   if (!$("room").value.trim()) return toast("Serve il codice della stanza");
   connect(true);
 };
-$("btnResetJoin").onclick = () => {
+$("btnReset").onclick = () => {
   if (confirm("Riportare la partita alla lobby per tutti?")) sendCmd("reset_game");
 };
 $("bannerReset").onclick = () => sendCmd("reset_game");
-$("btnDebugJoin").onclick = () => { location.href = "/debug.html"; };
+$("btnDebug").onclick = () => { location.href = "/debug.html"; };
 $("room").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
 initMapGestures();
 
-/* ============ fogli a comparsa ============
-   Quando i montanti non ci sono, le loro sezioni si aprono come foglio sopra
-   la console, una alla volta. Con i montanti visibili questi bottoni sono
-   nascosti dal CSS e le sezioni stanno gia' al loro posto. */
-const SHEETS = ["secCards", "secPlayers", "secActions", "secCombat"];
-const SHEET_BTN = {
-  secActions: "btnPanelActions", secCards: "btnPanelCards",
-  secCombat: "btnPanelCombat", secPlayers: "btnPanelPlayers",
-};
+/* pannelli a comparsa (telefono): si escludono a vicenda */
 function openSheet(id) {
-  for (const s of SHEETS) {
-    $(s).classList.toggle("sheet", s === id);
-    $(SHEET_BTN[s]).classList.toggle("on", s === id);
+  for (const s of ["secCards", "secPlayers", "secActions"]) {
+    $(s).classList.toggle("open", s === id);
   }
+  const actionsOpen = $("secActions").classList.contains("open");
+  $("actionsTab").textContent = actionsOpen ? "⚔️ Azioni ▴" : "⚔️ Azioni ▾";
+  $("actionsTab").classList.toggle("raised", actionsOpen);
 }
 function toggleSheet(id) {
-  openSheet($(id).classList.contains("sheet") ? null : id);
+  openSheet($(id).classList.contains("open") ? null : id);
 }
-for (const [sec, btn] of Object.entries(SHEET_BTN)) {
-  $(btn).onclick = () => toggleSheet(sec);
-}
+$("fabCards").onclick = () => toggleSheet("secCards");
+$("fabPlayers").onclick = () => toggleSheet("secPlayers");
+$("actionsTab").onclick = () => toggleSheet("secActions");
 $("combatPop").onclick = () => $("combatPop").classList.remove("on");
-
-/* comandi di vista: erano sovrapposti alla mappa, ora stanno nella console */
-$("btnZoomIn").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1 / 1.3);
-$("btnZoomOut").onclick = () => zoomAt(VB.x + VB.w / 2, VB.y + VB.h / 2, 1.3);
-$("btnView").onclick = () => { fitVBDefault(); applyVB(); };
-
-/* Menu: raccoglie quello che stava nell'header di partita */
-$("btnMenu").onclick = ev => {
-  ev.stopPropagation();
-  const r = ev.currentTarget.getBoundingClientRect();
-  openTileMenu(r.left + r.width / 2, r.top, [
-    { label: "🔄 Reset partita", run: () => {
-        if (confirm("Reset totale della partita per tutti. Continuare?")) sendCmd("reset_game");
-      } },
-    { label: "🧪 Client di debug", run: () => { location.href = "/debug.html"; } },
-    { label: "🚪 Esci dalla stanza", run: () => { location.reload(); } },
-  ]);
-};
 // tocco altrove chiude il menu contestuale senza eseguire nulla
 document.addEventListener("pointerdown", e => {
   if (!e.target.closest("#tileMenu")) closeTileMenu();
@@ -1882,7 +1766,7 @@ const standalone = window.navigator.standalone === true
 if (isIOS) {
   // installata da Home: il manifest la apre già a schermo intero, nulla da fare.
   // in tab normale: il fullscreen "vero" non è ottenibile via JS, si nasconde il bottone.
-  $("btnFs").style.display = "none";
+  $("fabFs").style.display = "none";
   if (!standalone && !localStorage.getItem("spq_a2hs_hint_dismissed")) {
     $("a2hsHint").classList.add("on");
     $("a2hsHintClose").onclick = () => {
@@ -1891,16 +1775,16 @@ if (isIOS) {
     };
   }
 } else if (!document.documentElement.requestFullscreen) {
-  $("btnFs").style.display = "none";
+  $("fabFs").style.display = "none";
 } else {
-  $("btnFs").onclick = async () => {
+  $("fabFs").onclick = async () => {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
     await document.documentElement.requestFullscreen();
     // la mappa è orizzontale: su telefono ruota in landscape (solo Android)
     try { await screen.orientation.lock("landscape"); } catch {}
   };
   document.addEventListener("fullscreenchange", () => {
-    $("btnFs").textContent = document.fullscreenElement ? "🗗" : "⛶";
+    $("fabFs").textContent = document.fullscreenElement ? "🗗" : "⛶";
     if (!document.fullscreenElement) { try { screen.orientation.unlock(); } catch {} }
   });
 }
