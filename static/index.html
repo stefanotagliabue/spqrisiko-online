@@ -181,27 +181,44 @@
     .prov.selB circle { stroke: #7fd4ff; stroke-width: 3; animation: none; }
     .prov.deficit circle { stroke: #ff5252; stroke-width: 3; stroke-dasharray: 5 3; }
     .prov.neutralOwner circle { stroke-dasharray: 4 2; }
-    /* i mari sono gia' disegnati sulla plancia: l'ellisse serve solo da area
-       cliccabile (quasi invisibile) e da contorno quando e' un bersaglio */
-    .sea ellipse { fill: rgba(80,140,210,.02); stroke: none; cursor: pointer; }
-    .sea text { pointer-events: none; }
-    .sea .tri {
-      font-weight: 700; fill: #fff; stroke: #0b111a; stroke-width: .7px;
-      paint-order: stroke;
+    /* i mari sono gia' disegnati sulla plancia: il rettangolo e' l'area
+       cliccabile e la "rastrelliera" che tiene i gettoni-nave dei giocatori */
+    .sea .seaBox {
+      fill: rgba(8,20,36,.42); stroke: rgba(159,197,239,.35); stroke-width: 1.2;
+      cursor: pointer;
     }
-    .sea.clickable ellipse {
+    .sea text { pointer-events: none; }
+    .sea .slot { pointer-events: none; stroke: #0b111a; stroke-width: 1; }
+    .sea .slotN {
+      font-size: 13px; font-weight: 700; fill: #fff;
+      stroke: #0b111a; stroke-width: .7px; paint-order: stroke;
+      pointer-events: none;
+    }
+    /* mare senza navi: nessuna cornice visibile, resta solo l'area di tocco
+       (le regole di stato qui sotto la rendono comunque visibile quando serve) */
+    .sea.empty .seaBox { fill: rgba(80,140,210,.02); stroke: none; }
+    .sea.clickable .seaBox {
       stroke: #9fc5ef; stroke-width: 2.2;
       animation: clickPulse 1.3s ease-in-out infinite;
     }
-    .sea.clickable.atkTarget ellipse {
+    .sea.clickable.atkTarget .seaBox {
       stroke: #ff5f5f;
       animation: clickPulse 1.1s ease-in-out infinite;
     }
-    .sea.clickable:hover ellipse { stroke: #fff; animation: none; }
-    .sea.selA ellipse { stroke: var(--accent); stroke-width: 3; animation: none; }
-    .sea.selB ellipse { stroke: #7fd4ff; stroke-width: 3; animation: none; }
+    .sea.clickable:hover .seaBox { stroke: #fff; animation: none; }
+    .sea.selA .seaBox { stroke: var(--accent); stroke-width: 3; animation: none; }
+    .sea.selB .seaBox { stroke: #7fd4ff; stroke-width: 3; animation: none; }
     .edge { stroke: #2c3c55; stroke-width: 1.1; }
-    .pcStar { font-size: 13px; pointer-events: none; }
+    /* disco dorato dietro il colosseo: e' lui a far risaltare l'icona sulla
+       plancia (staccato dal cerchio della provincia) */
+    /* .prov circle ha regole proprie (bordo scuro, ombra): serve piu' peso */
+    .prov circle.pcHalo {
+      fill: #14243a; stroke: var(--accent); stroke-width: 2;
+      filter: drop-shadow(0 0 3px rgba(217,165,63,.85));
+      pointer-events: none;
+    }
+    .pcHalo.off, .pcIcon.off { display: none; }
+    .pcIcon { font-size: 14px; pointer-events: none; }
 
     /* pan & zoom mappa */
     #map { touch-action: none; }
@@ -442,26 +459,36 @@ const CLIENT_VERSION = "index-v9-map-first";
 /* ============ coordinate mappa (centri tile) ============ */
 /* coordinate tarate sulla plancia reale (static/map.jpg), viewBox 1240x700 */
 const PROV_XY = {
-  BRITANNIA:[130,60], GERMANIA_INFERIOR:[346,28], BELGICA:[280,144],
-  LUGDUNENSE:[303,218], RAETIA:[422,107], NORICUM:[524,97], PANNONIA:[710,117],
-  DACIA:[673,20], MOESIA:[769,77], AQUITANIA:[196,255], NARBONENSIS:[282,285],
-  CISALPINA:[434,224], ILLIRIA:[536,193], DALMAZIA:[610,150], THRACIA:[794,190],
-  GALICIA:[142,396], TERRACONENSIS:[196,469], LUSITANIA:[40,421], BAETICA:[146,521],
-  ITALIA:[467,288], CORSICA:[415,338], SARDINIA:[432,408], SICILIA:[572,449],
-  BALEARES:[279,472], EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
-  CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146], PONTO:[1084,67],
-  GALATIA:[975,200], CAPPADOCIA:[1089,123], CILICIA:[983,252], CIPRO:[1017,301],
-  SYRIA:[1118,343], JUDEA:[1104,428], ARABIA:[1187,420], ARMENIA:[1192,204],
-  MESOPOTAMIA:[1186,277], MAURETANIA:[307,619], NUMIDIA:[438,663], AFRICA:[489,562],
-  CYRENAICA:[839,635], AEGYPTUS:[1021,557],
+  BRITANNIA:[141,71], GERMANIA_INFERIOR:[346,36], BELGICA:[280,144],
+  LUGDUNENSE:[339,215], RAETIA:[422,107], NORICUM:[524,97],
+  PANNONIA:[710,131], DACIA:[668,43], MOESIA:[769,77],
+  AQUITANIA:[200,268], NARBONENSIS:[277,294], CISALPINA:[430,227],
+  ILLIRIA:[531,199], DALMAZIA:[631,181], THRACIA:[794,190],
+  GALICIA:[108,415], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
+  BAETICA:[171,555], ITALIA:[463,292], CORSICA:[415,338],
+  SARDINIA:[432,408], SICILIA:[572,449], BALEARES:[279,472],
+  EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
+  CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146],
+  PONTO:[1084,67], GALATIA:[975,200], CAPPADOCIA:[1078,181],
+  CILICIA:[983,252], CIPRO:[1019,311], SYRIA:[1141,331],
+  JUDEA:[1143,455], ARABIA:[1196,446], ARMENIA:[1191,200],
+  MESOPOTAMIA:[1187,291], MAURETANIA:[308,630], NUMIDIA:[401,600],
+  AFRICA:[489,562], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
 };
 const SEA_XY = {
-  BRITANNICUS:[120,140], CANTABRICUM:[100,290], IBERICUM:[40,600],
-  BALEARICUM:[350,540], SINUS_GALLICUS:[330,400], TYRRENUM:[470,400],
-  HADRIATICUM:[560,280], IONIUM:[700,470], AEGEUM:[810,320], CRETICUM:[980,420],
-  PONTUS_EUXINUS:[850,60], SYRTIS:[620,540],
+  BRITANNICUS:[69,165], CANTABRICUM:[75,291], IBERICUM:[67,637],
+  BALEARICUM:[350,511], SINUS_GALLICUS:[353,383], TYRRENUM:[521,394],
+  HADRIATICUM:[576,271], IONIUM:[730,452], AEGEUM:[857,351],
+  CRETICUM:[965,425], PONTUS_EUXINUS:[864,70], SYRTIS:[615,549],
 };
-const PIP_R = 15, SEA_RX = 30, SEA_RY = 20;
+const PIP_R = 15;
+/* gettoni-nave: un quadrato per giocatore presente nel mare, dentro un
+   rettangolo dimensionato per ospitarli tutti (quelli presenti sono centrati) */
+const SEA_SQ = 15, SEA_GAP = 3, SEA_PAD = 5;
+const seaBoxSize = n => ({
+  w: n * SEA_SQ + (n - 1) * SEA_GAP + 2 * SEA_PAD,
+  h: SEA_SQ + 2 * SEA_PAD,
+});
 
 const COLOR_HEX = {
   // BLACK deve restare distinguibile dal grigio delle province libere (--free)
@@ -536,7 +563,7 @@ function connect() {
     if (msg.type === "state") { lastState = msg.state; render(); }
     if (msg.type === "error") {
       toast(msg.error);
-      if (String(msg.error).includes("cannot join")) {
+      if (String(msg.error).includes("cannot join") || String(msg.error).includes("Stanza inesistente")) {
         autoReconnect = false;
         $("joinMsg").textContent = "❌ " + msg.error;
       }
@@ -578,9 +605,8 @@ function buildMap(m) {
   for (const [id, sea] of Object.entries(m.seas)) {
     const [cx,cy] = SEA_XY[id] || [0,0];
     const g = svgEl("g", { class:"sea", id:`sea_${id}` });
-    g.append(svgEl("ellipse", { cx, cy, rx:SEA_RX, ry:SEA_RY }));
-    const tr = svgEl("text", { class:"tri", x:cx, y:cy+4, "text-anchor":"middle", "font-size":"12" });
-    g.append(tr);
+    g.append(svgEl("rect", { class:"seaBox", x:cx, y:cy, width:0, height:0, rx:4 }));
+    g.append(svgEl("g", { class:"slots" }));
     g.addEventListener("click", () => onSeaClick(id));
     gSeas.append(g);
   }
@@ -591,7 +617,15 @@ function buildMap(m) {
     g.append(svgEl("circle", { cx, cy, r:PIP_R }));
     const lg = svgEl("text", { class:"lg", x:cx, y:cy+1, "text-anchor":"middle", "dominant-baseline":"central" });
     g.append(lg);
-    const pc = svgEl("text", { class:"pcStar", x:cx+PIP_R-1, y:cy-PIP_R+2 });
+    // centro di potere: uno solo per provincia (§16.4). L'icona sta sopra il
+    // gettone, dentro un disco dorato: lo stroke sul testo non funziona con le
+    // emoji a colori (glifi bitmap), serve un elemento vero dietro
+    const pcy = cy - PIP_R - 12;
+    const halo = svgEl("circle", { class:"pcHalo", cx, cy:pcy, r:10 });
+    g.append(halo);
+    const pc = svgEl("text", {
+      class:"pcIcon", x:cx, y:pcy, "text-anchor":"middle", "dominant-baseline":"central",
+    });
     g.append(pc);
     g.addEventListener("click", () => onProvClick(id));
     gProv.append(g);
@@ -1039,7 +1073,8 @@ function renderMapState(st) {
     g.querySelector("circle").setAttribute("fill", ownerFill(pr.owner));
     const extra = ui.placements[id] ? `+${ui.placements[id]}` : "";
     g.querySelector(".lg").textContent = pr.legions > 0 ? `${pr.legions}${extra}` : (extra || "");
-    g.querySelector(".pcStar").textContent = pr.power_center ? "★" : "";
+    g.querySelector(".pcIcon").textContent = pr.power_center ? "🏛️" : "";
+    g.querySelector(".pcHalo").classList.toggle("off", !pr.power_center);
     g.classList.toggle("neutralOwner", !!pr.owner && pr.owner.startsWith("NEUTRAL_"));
     g.classList.toggle("clickable", clkP.has(id));
     g.classList.toggle("atkTarget", clkP.has(id) && isEnemy(id));
@@ -1047,16 +1082,38 @@ function renderMapState(st) {
     g.classList.toggle("selA", [ui.sel.claim, ui.sel.from, ui.sel.prov].includes(id));
     g.classList.toggle("selB", [ui.sel.neutral, ui.sel.to, ui.trisPc].includes(id));
   }
+  // ogni mare mostra solo i colori presenti, nell'ordine dei giocatori, e il
+  // rettangolo si stringe attorno a loro (cresce simmetrico attorno a SEA_XY)
+  const seatColors = st.players.filter(p => p.color).map(p => p.color);
   for (const [id, s] of Object.entries(st.map.seas)) {
     const g = $(`sea_${id}`);
     if (!g) continue;
+    const [cx, cy] = SEA_XY[id] || [0, 0];
     const t = s.triremes || {};
-    const parts = Object.entries(t).filter(([,n]) => n > 0).map(([c,n]) => `${n}⛵`);
-    const txt = g.querySelector(".tri");
-    txt.textContent = parts.join(" ");
-    // colora il testo del primo colore presente (semplice ma leggibile)
-    const firstColor = Object.keys(t).find(c => t[c] > 0);
-    txt.setAttribute("fill", firstColor ? (COLOR_HEX[firstColor] || "#cde") : "#cde");
+    const present = seatColors.filter(c => (t[c] || 0) > 0);
+    // il mare vuoto tiene la misura di un posto: resta un'area di tocco sensata
+    const { w: boxW, h: boxH } = seaBoxSize(Math.max(present.length, 1));
+    const box = g.querySelector(".seaBox");
+    box.setAttribute("x", cx - boxW / 2); box.setAttribute("y", cy - boxH / 2);
+    box.setAttribute("width", boxW); box.setAttribute("height", boxH);
+
+    const slots = g.querySelector(".slots");
+    slots.innerHTML = "";
+    const rowW = present.length * SEA_SQ + Math.max(present.length - 1, 0) * SEA_GAP;
+    present.forEach((c, i) => {
+      const x = cx - rowW / 2 + i * (SEA_SQ + SEA_GAP);
+      slots.append(svgEl("rect", {
+        class:"slot", x, y: cy - SEA_SQ / 2, width: SEA_SQ, height: SEA_SQ, rx:3,
+        fill: COLOR_HEX[c] || "#7d8590",
+      }));
+      const n = svgEl("text", {
+        class:"slotN", x: x + SEA_SQ / 2, y: cy,
+        "text-anchor":"middle", "dominant-baseline":"central",
+      });
+      n.textContent = t[c];
+      slots.append(n);
+    });
+    g.classList.toggle("empty", present.length === 0);
     g.classList.toggle("clickable", clkS.has(id));
     // in NAVAL_COMBAT ogni mare cliccabile è di per sé un bersaglio di combattimento
     g.classList.toggle("atkTarget", clkS.has(id) && st.turn.phase === "NAVAL_COMBAT");

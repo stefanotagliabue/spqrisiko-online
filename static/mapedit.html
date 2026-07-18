@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SPQRisiKo — posiziona province e mari</title>
+<style>
+  body {
+    margin: 0; background: #0b111a; color: #dfe7f2;
+    font: 14px/1.4 system-ui, sans-serif;
+  }
+  header { padding: 10px 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  label { display: flex; gap: 6px; align-items: center; opacity: .9; }
+  button, input[type=number] {
+    background: #1c2a3d; color: #dfe7f2; border: 1px solid #35506f;
+    border-radius: 8px; padding: 7px 10px; font-size: 13px;
+  }
+  button { cursor: pointer; }
+  button:hover { background: #26374f; }
+  input[type=number] { width: 84px; }
+  #wrap { padding: 0 14px 14px; }
+  svg { width: 100%; height: auto; display: block; touch-action: none; background: #000; }
+
+  /* stessi stili del gioco, cosi' quello che vedi qui e' quello che avrai */
+  .prov circle {
+    stroke: #0b111a; stroke-width: 1.4; cursor: grab;
+    fill-opacity: .95; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.55));
+  }
+  .prov text { pointer-events: none; }
+  .prov .lg {
+    font-size: 15px; font-weight: 700; fill: #fff;
+    stroke: #0b111a; stroke-width: .6px; paint-order: stroke;
+  }
+  .prov circle.pcHalo {
+    fill: #14243a; stroke: #d9a53f; stroke-width: 2; pointer-events: none;
+    filter: drop-shadow(0 0 3px rgba(217,165,63,.85));
+  }
+  .pcIcon { font-size: 14px; pointer-events: none; }
+  .seaBox { fill: rgba(8,20,36,.42); stroke: rgba(159,197,239,.55); stroke-width: 1.2; cursor: grab; }
+  .slot { stroke: #0b111a; stroke-width: 1; pointer-events: none; }
+  .slotN {
+    font-size: 13px; font-weight: 700; fill: #fff; stroke: #0b111a;
+    stroke-width: .7px; paint-order: stroke; pointer-events: none;
+  }
+  .sel .seaBox, .sel circle:not(.pcHalo) { stroke: #ffd166; stroke-width: 2.6; }
+  .tag {
+    font-size: 9px; fill: #ffd166; stroke: #000; stroke-width: 2.4px;
+    paint-order: stroke; pointer-events: none;
+  }
+  #out {
+    width: 100%; height: 190px; margin-top: 10px; background: #0f1723; color: #cfe;
+    border: 1px solid #24344a; border-radius: 8px; padding: 8px;
+    font: 12px/1.45 ui-monospace, monospace; resize: vertical;
+  }
+  .hint { opacity: .65; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Posiziona province e mari</h1>
+  <label>legioni <input id="lg" type="number" min="1" max="99999" value="8" /></label>
+  <label>giocatori <input id="np" type="range" min="3" max="5" value="5" /><b id="npv">5</b></label>
+  <label>lato quadrato <input id="sq" type="range" min="12" max="28" value="15" /><b id="sqv">15</b></label>
+  <label><input id="pc" type="checkbox" checked /> centri di potere ovunque</label>
+  <label><input id="names" type="checkbox" /> nomi</label>
+  <button id="copy">Copia coordinate</button>
+  <button id="reset">Reset posizioni</button>
+  <span class="hint">trascina province e mari · frecce = 1px (shift = 10px) sull'ultimo mosso</span>
+</header>
+<div id="wrap">
+  <svg id="map" viewBox="0 0 1240 700"></svg>
+  <textarea id="out" spellcheck="false"></textarea>
+</div>
+
+<script>
+/* Tool di calibrazione: le coordinate sono i CENTRI dei gettoni, stessa
+   convenzione di PROV_XY / SEA_XY in index.html. I mari sono disegnati sempre
+   pieni (una pedina per giocatore) e le province con il centro di potere
+   acceso: cosi' si vede l'ingombro nel caso peggiore. */
+const PROV_XY0 = {
+  BRITANNIA:[141,71], GERMANIA_INFERIOR:[346,36], BELGICA:[280,144],
+  LUGDUNENSE:[339,215], RAETIA:[422,107], NORICUM:[524,97],
+  PANNONIA:[710,131], DACIA:[668,43], MOESIA:[769,77],
+  AQUITANIA:[200,268], NARBONENSIS:[277,294], CISALPINA:[430,227],
+  ILLIRIA:[531,199], DALMAZIA:[631,181], THRACIA:[794,190],
+  GALICIA:[108,415], TERRACONENSIS:[205,472], LUSITANIA:[62,459],
+  BAETICA:[171,555], ITALIA:[463,292], CORSICA:[415,338],
+  SARDINIA:[432,408], SICILIA:[572,449], BALEARES:[279,472],
+  EPIRUS:[674,302], MACEDONIA:[728,251], ACHAIA:[749,351],
+  CRETA:[833,413], ASIA:[853,225], BITHYNIA:[909,146],
+  PONTO:[1084,67], GALATIA:[975,200], CAPPADOCIA:[1078,181],
+  CILICIA:[983,252], CIPRO:[1019,311], SYRIA:[1141,331],
+  JUDEA:[1143,455], ARABIA:[1196,446], ARMENIA:[1191,200],
+  MESOPOTAMIA:[1187,291], MAURETANIA:[308,630], NUMIDIA:[401,600],
+  AFRICA:[489,562], CYRENAICA:[833,642], AEGYPTUS:[1022,568],
+};
+const SEA_XY0 = {
+  BRITANNICUS:[69,165], CANTABRICUM:[75,291], IBERICUM:[67,637],
+  BALEARICUM:[350,511], SINUS_GALLICUS:[353,383], TYRRENUM:[521,394],
+  HADRIATICUM:[576,271], IONIUM:[730,452], AEGEUM:[857,351],
+  CRETICUM:[965,425], PONTUS_EUXINUS:[864,70], SYRTIS:[615,549],
+};
+const COLORS = ["#c0483e", "#3f6fbf", "#c29a2e", "#3f9159", "#1e1e26"];
+const PIP_R = 15, GAP = 3, PAD = 5;
+const STORE = "spq_map_xy_edit";
+
+const $ = id => document.getElementById(id);
+const svgEl = (t, a={}) => {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
+  return e;
+};
+
+const defaults = () => ({
+  prov: JSON.parse(JSON.stringify(PROV_XY0)),
+  sea: JSON.parse(JSON.stringify(SEA_XY0)),
+});
+let pos = (() => {
+  const d = defaults();
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE) || "null");
+    if (s) return { prov: { ...d.prov, ...(s.prov||{}) }, sea: { ...d.sea, ...(s.sea||{}) } };
+  } catch {}
+  return d;
+})();
+let nPlayers = 5, sqSize = 15, legions = 8, last = null;
+
+function draw() {
+  const svg = $("map");
+  svg.innerHTML = "";
+  svg.append(svgEl("image", {
+    href: "/map.jpg", x: 0, y: 0, width: 1240, height: 700, preserveAspectRatio: "none",
+  }));
+  const showNames = $("names").checked, showPc = $("pc").checked;
+  const boxH = sqSize + 2*PAD, boxW = nPlayers*sqSize + (nPlayers-1)*GAP + 2*PAD;
+
+  // mari: box pieno = ingombro massimo
+  for (const [id, [cx, cy]] of Object.entries(pos.sea)) {
+    const g = svgEl("g", { class: "sea" + (last === "sea:"+id ? " sel" : "") });
+    g.dataset.key = "sea:" + id;
+    g.append(svgEl("rect", { class:"seaBox", x:cx-boxW/2, y:cy-boxH/2, width:boxW, height:boxH, rx:4 }));
+    const rowW = nPlayers*sqSize + (nPlayers-1)*GAP;
+    for (let i = 0; i < nPlayers; i++) {
+      const x = cx - rowW/2 + i*(sqSize+GAP);
+      g.append(svgEl("rect", { class:"slot", x, y:cy-sqSize/2, width:sqSize, height:sqSize, rx:3, fill:COLORS[i] }));
+      const n = svgEl("text", { class:"slotN", x:x+sqSize/2, y:cy,
+        "text-anchor":"middle", "dominant-baseline":"central" });
+      n.textContent = "3";
+      g.append(n);
+    }
+    if (showNames) addTag(g, id, cx, cy - boxH/2 - 4);
+    svg.append(g);
+  }
+
+  // province: gettone + numero legioni + centro di potere
+  let i = 0;
+  for (const [id, [cx, cy]] of Object.entries(pos.prov)) {
+    const g = svgEl("g", { class: "prov" + (last === "prov:"+id ? " sel" : "") });
+    g.dataset.key = "prov:" + id;
+    g.append(svgEl("circle", { cx, cy, r:PIP_R, fill: COLORS[i++ % COLORS.length] }));
+    const lg = svgEl("text", { class:"lg", x:cx, y:cy+1,
+      "text-anchor":"middle", "dominant-baseline":"central" });
+    lg.textContent = String(legions);
+    g.append(lg);
+    if (showPc) {
+      const pcy = cy - PIP_R - 12;
+      g.append(svgEl("circle", { class:"pcHalo", cx, cy:pcy, r:10 }));
+      const ic = svgEl("text", { class:"pcIcon", x:cx, y:pcy,
+        "text-anchor":"middle", "dominant-baseline":"central" });
+      ic.textContent = "🏛️";
+      g.append(ic);
+    }
+    if (showNames) addTag(g, id, cx, cy + PIP_R + 10);
+    svg.append(g);
+  }
+  dumpOut();
+}
+
+function addTag(g, text, x, y) {
+  const t = svgEl("text", { class:"tag", x, y, "text-anchor":"middle" });
+  t.textContent = text;
+  g.append(t);
+}
+
+function block(name, table) {
+  const ids = Object.keys(table);
+  const lines = [];
+  for (let i = 0; i < ids.length; i += 3) {
+    lines.push("  " + ids.slice(i, i+3)
+      .map(id => `${id}:[${Math.round(table[id][0])},${Math.round(table[id][1])}]`)
+      .join(", ") + ",");
+  }
+  return `const ${name} = {\n${lines.join("\n")}\n};`;
+}
+
+function dumpOut() {
+  $("out").value = block("PROV_XY", pos.prov) + "\n" + block("SEA_XY", pos.sea);
+}
+
+function save() { localStorage.setItem(STORE, JSON.stringify(pos)); }
+
+/* ---- drag ---- */
+let drag = null;
+const svgPoint = ev => {
+  const r = $("map").getBoundingClientRect();
+  return [(ev.clientX - r.left) / r.width * 1240, (ev.clientY - r.top) / r.height * 700];
+};
+const at = key => { const [k, id] = key.split(":"); return pos[k][id]; };
+
+$("map").addEventListener("pointerdown", ev => {
+  const g = ev.target.closest(".prov, .sea");
+  if (!g) return;
+  const key = g.dataset.key;
+  const [px, py] = svgPoint(ev);
+  const p = at(key);
+  drag = { key, dx: p[0] - px, dy: p[1] - py };
+  last = key;
+  $("map").setPointerCapture(ev.pointerId);
+  ev.preventDefault();
+});
+$("map").addEventListener("pointermove", ev => {
+  if (!drag) return;
+  const [px, py] = svgPoint(ev);
+  const [k, id] = drag.key.split(":");
+  pos[k][id] = [
+    Math.round(Math.min(1240, Math.max(0, px + drag.dx))),
+    Math.round(Math.min(700, Math.max(0, py + drag.dy))),
+  ];
+  draw();
+});
+$("map").addEventListener("pointerup", () => { if (drag) { drag = null; save(); draw(); } });
+
+/* ---- tastiera: micro-aggiustamenti sull'ultimo gettone toccato ---- */
+addEventListener("keydown", ev => {
+  if (!last || document.activeElement !== document.body) return;
+  const d = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] }[ev.key];
+  if (!d) return;
+  const k = ev.shiftKey ? 10 : 1;
+  const p = at(last);
+  p[0] += d[0]*k; p[1] += d[1]*k;
+  save(); draw(); ev.preventDefault();
+});
+
+$("lg").oninput = e => { legions = Math.max(1, +e.target.value || 1); draw(); };
+$("np").oninput = e => { nPlayers = +e.target.value; $("npv").textContent = nPlayers; draw(); };
+$("sq").oninput = e => { sqSize = +e.target.value; $("sqv").textContent = sqSize; draw(); };
+$("pc").onchange = draw;
+$("names").onchange = draw;
+$("copy").onclick = async () => {
+  await navigator.clipboard.writeText($("out").value);
+  $("copy").textContent = "Copiato ✓";
+  setTimeout(() => $("copy").textContent = "Copia coordinate", 1200);
+};
+$("reset").onclick = () => {
+  if (!confirm("Rimettere tutte le posizioni ai valori di partenza?")) return;
+  pos = defaults(); localStorage.removeItem(STORE); last = null; draw();
+};
+
+draw();
+</script>
+</body>
+</html>
