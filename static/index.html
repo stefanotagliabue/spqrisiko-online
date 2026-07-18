@@ -219,6 +219,12 @@
     }
     .pcHalo.off, .pcIcon.off { display: none; }
     .pcIcon { font-size: 14px; pointer-events: none; }
+    /* area di tocco allargata: deve restare invisibile anche quando la
+       provincia e' selezionata o pulsa come bersaglio, quindi va dopo tutte
+       le regole .prov (stessa specificita': vince l'ultima) */
+    .prov circle.hit {
+      fill: transparent; stroke: none; filter: none; animation: none;
+    }
 
     /* freccia d'attacco: il collegamento attaccante→difensore disegnato sulla
        plancia, come in RISK II */
@@ -649,6 +655,9 @@ function buildMap(m) {
   for (const [id, pr] of Object.entries(m.provinces)) {
     const [cx,cy] = PROV_XY[id] || [0,0];
     const g = svgEl("g", { class:"prov", id:`prov_${id}` });
+    // bersaglio di tocco piu' largo del gettone: sul telefono il cerchio da
+    // r=15 e' pochi millimetri e si manca facilmente. Invisibile, sta sotto.
+    g.append(svgEl("circle", { class:"hit", cx, cy, r:PIP_R + 13 }));
     g.append(svgEl("circle", { cx, cy, r:PIP_R }));
     const lg = svgEl("text", { class:"lg", x:cx, y:cy+1, "text-anchor":"middle", "dominant-baseline":"central" });
     g.append(lg);
@@ -932,7 +941,7 @@ function zoomAt(cx, cy, factor) {
 function initMapGestures() {
   const svg = $("map");
   const pts = new Map(); // pointerId -> {x, y} (coordinate client)
-  let moved = false, pinchDist = 0;
+  let moved = false, pinchDist = 0, startPt = null;
   let longPressTimer = null;
   const cancelLongPress = () => { clearTimeout(longPressTimer); longPressTimer = null; };
 
@@ -941,6 +950,7 @@ function initMapGestures() {
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pts.size === 1) {
       moved = false;
+      startPt = { x: e.clientX, y: e.clientY };
       cancelLongPress();
       const g = e.target.closest(".prov, .sea");
       if (g) {
@@ -967,8 +977,11 @@ function initMapGestures() {
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (pts.size === 1) {
-      if (Math.abs(dx) + Math.abs(dy) > 2) {
-        if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return; // tolleranza tap
+      // La tolleranza del tap va misurata dall'INIZIO del gesto, non fra due
+      // eventi consecutivi: col confronto evento-per-evento un dito che trema
+      // di pochi pixel faceva scattare "trascinamento" e il click spariva.
+      const far = startPt && (Math.hypot(e.clientX - startPt.x, e.clientY - startPt.y) > 10);
+      if (moved || far) {
         moved = true;
         cancelLongPress();
         const r = svg.getBoundingClientRect();
