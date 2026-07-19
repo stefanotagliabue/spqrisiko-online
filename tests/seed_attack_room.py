@@ -34,6 +34,11 @@ for pr in gs["map"]["provinces"].values():
 for pid in ["ITALIA", "MACEDONIA", "AEGYPTUS"]:
     gs["map"]["provinces"][pid]["owner"] = "RED"
     gs["map"]["provinces"][pid]["legions"] = 8
+# una provincia sopra la soglia dei sigilli (20+) per vedere nell'arena i
+# pezzi da 10 e il loro "cambio" quando le perdite superano i singoli
+gs["map"]["provinces"]["MACEDONIA"]["legions"] = 23
+# e un difensore grosso, cosi' anche a destra si vedono i sigilli
+gs["map"]["provinces"]["THRACIA"]["legions"] = 21
 
 gs["turn"]["phase"] = "LAND_ATTACKS"
 gs["turn"]["turnIndex"] = 0

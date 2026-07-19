@@ -228,18 +228,17 @@
 
     /* freccia d'attacco: il collegamento attaccante→difensore disegnato sulla
        plancia, come in RISK II */
-    .atkLine { stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
-    .atkLine.pending { stroke-dasharray: 14 7; animation: atkDash .7s linear infinite; }
-    @keyframes atkDash { to { stroke-dashoffset: -21; } }
-    .atkHead { filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
-    .atkDice { cursor: pointer; }
-    .atkDice.bad { cursor: default; }
-    .atkDice.bad circle { stroke: #ff8a8a; }
-    .atkDice circle { stroke: #0b111a; stroke-width: 2; }
-    .atkDice text {
-      font-size: 14px; font-weight: 700; fill: #fff;
-      stroke: #0b111a; stroke-width: .8px; paint-order: stroke; pointer-events: none;
+    /* il layer della freccia sta sopra le province: se intercettasse i tocchi
+       si mangerebbe il tap sul bersaglio (il cuneo copre proprio la fascia fra
+       i due gettoni). Nessun elemento qui dentro e' cliccabile. */
+    #atkLayer { pointer-events: none; }
+    .atkWedge {
+      stroke: #0b111a; stroke-width: 1.5; stroke-linejoin: round;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.75));
     }
+    /* mira non ancora confermata: il cuneo pulsa invece di stare fermo */
+    .atkWedge.pending { animation: atkPulse .9s ease-in-out infinite; }
+    @keyframes atkPulse { 50% { opacity: .55; } }
     .atkFx { pointer-events: none; }
     .atkFx rect { fill: rgba(11,17,26,.88); stroke: var(--accent); stroke-width: 1.5; }
     .atkFx text { font-size: 17px; fill: #fff; }
@@ -312,6 +311,107 @@
       max-width: 92vw; display: none;
     }
     #combatPop.on { display: block; }
+
+    /* ===== arena dei dadi: il tiro d'attacco si guarda qui, non nel pannello.
+       Attaccante a sinistra, difensore a destra, come sul tavolo vero. ===== */
+    #duelWrap {
+      position: fixed; inset: 0; z-index: 70; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(6,10,16,.72); backdrop-filter: blur(2px);
+    }
+    #duelWrap.on { display: flex; }
+    #duelBox {
+      background: var(--panel); border: 1px solid var(--accent); border-radius: 16px;
+      padding: 14px 18px 16px; box-shadow: 0 14px 44px rgba(0,0,0,.7);
+      max-width: min(92vw, 460px); width: 100%; text-align: center;
+    }
+    .duelTitle { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .duelSub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    /* i dadi si affrontano riga per riga: attaccante | cuneo | difensore,
+       dal piu' alto al piu' basso, come si allineano sul tavolo */
+    .duelArena { display: flex; flex-direction: column; gap: 2px; }
+    .duelRow {
+      display: grid; grid-template-columns: 1fr 44px 1fr;
+      align-items: center; justify-items: center;
+    }
+    .duelHead { margin-bottom: 2px; }
+    .duelWho { font-size: 12px; font-weight: 700; }
+    .duelVs { font-size: 18px; opacity: .8; }
+    .duelGap { width: 100%; }
+    .dieVuoto { font-size: 24px; color: var(--muted); opacity: .45; }
+    .duelCuneo { filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .duelForze { margin-top: 8px; align-items: start; }
+    /* contatore perdite dello scontro, sotto le rispettive schiere */
+    .duelCount {
+      margin-top: 6px; font-size: 12px; font-weight: 700;
+      border-top: 1px solid rgba(255,255,255,.08); padding-top: 6px;
+    }
+    .dieBig {
+      font-size: 46px; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,.6);
+      transition: transform .12s;
+    }
+    /* mentre gira: il dado sobbalza, cosi' si vede che non e' ancora fermo */
+    .dieBig.rolling { animation: dieRoll .16s linear infinite; }
+    @keyframes dieRoll {
+      0% { transform: translateY(0) rotate(-8deg); }
+      50% { transform: translateY(-5px) rotate(8deg); }
+      100% { transform: translateY(0) rotate(-8deg); }
+    }
+    /* esito del singolo confronto: il dado che perde si spegne */
+    .dieBig.lost { opacity: .35; transform: scale(.86); }
+    .dieBig.won { transform: scale(1.12); }
+    /* le statuine schierate sotto i dadi: danno la misura della forza in campo */
+    .duelForza {
+      display: flex; flex-wrap: wrap; gap: 2px; justify-content: center;
+      align-items: flex-end; min-height: 22px;
+    }
+    .statuina { filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+    /* pezzo caduto in questo tiro: resta in campo, spento e barrato */
+    .statuina.fallen { opacity: .3; transform: rotate(78deg) translateY(2px); }
+    .sigillo text {
+      font-size: 9px; font-weight: 700; fill: #fff;
+      stroke: #0b111a; stroke-width: .7px; paint-order: stroke;
+    }
+    .sigillo { filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .sigillo.rotto circle { opacity: .45; }
+    .forzaTot {
+      width: 100%; font-size: 11px; color: var(--muted); margin-top: 2px;
+    }
+    .forzaVuota { color: var(--muted); font-size: 13px; }
+
+    .duelLoss { font-size: 13px; margin-top: 10px; min-height: 20px; font-weight: 700; }
+    .duelLoss .lossA { color: #ff8a8a; }
+    .duelLoss .lossD { color: #8affa0; }
+    .duelWin { color: var(--accent); font-weight: 700; font-size: 15px; }
+    /* bilancio della battaglia nella vista di conquista */
+    .duelStats {
+      display: grid; grid-template-columns: 1fr 44px 1fr; align-items: start;
+      margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .statCol { text-align: center; }
+    .statWho { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .statRiga { font-size: 12px; color: var(--muted); }
+    .statNum { font-size: 15px; font-weight: 700; color: #e8eef7; }
+    .statNum.statPerse { color: #ff8a8a; }
+    .statResto { margin-top: 2px; }
+    /* quante legioni restano e quante avanzano nella provincia presa */
+    .duelSplit { margin-top: 8px; align-items: start; }
+    .duelQta {
+      font-size: 22px; font-weight: 700; min-width: 42px; display: inline-block;
+      color: var(--accent);
+    }
+    .duelRange { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+    /* scelta di quanti dadi tirare */
+    .duelPick { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 12px; }
+    .duelPick .lbl { font-size: 12px; color: var(--muted); margin-right: 2px; }
+    .duelPick button { padding: 8px 14px; font-weight: 700; }
+    .duelPick button.sel { border-color: var(--accent); color: var(--accent); }
+    .duelBtns { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+    .duelBtns button { flex: 1; padding: 12px; font-size: 15px; }
+    /* la ritirata non e' un'azione da premere per sbaglio: sta li' spenta */
+    .duelBtns button.ritira { color: #ffb4b4; border-color: rgba(255,120,120,.45); }
+    .duelBtns button.ritira:hover { border-color: #ff8a8a; }
+    .duelWarn { font-size: 12px; color: #ff8a8a; margin-top: 10px; }
 
     /* menu contestuale su pressione prolungata di una provincia/mare */
     #tileMenu {
@@ -473,6 +573,7 @@
   </div>
   <button class="fab" id="fabFs" title="Schermo intero">⛶</button>
   <div id="combatPop"></div>
+  <div id="duelWrap"><div id="duelBox"></div></div>
 
   <div id="toast"></div>
   <div id="a2hsHint"><span>Per il vero schermo intero (niente barra/schede del browser): tocca <b>Condividi</b> ⬆️ → <b>"Aggiungi a Home"</b>.</span><button id="a2hsHintClose" title="Chiudi">✕</button></div>
@@ -658,7 +759,8 @@ function buildMap(m) {
     // bersaglio di tocco piu' largo del gettone: sul telefono il cerchio da
     // r=15 e' pochi millimetri e si manca facilmente. Invisibile, sta sotto.
     g.append(svgEl("circle", { class:"hit", cx, cy, r:PIP_R + 13 }));
-    g.append(svgEl("circle", { cx, cy, r:PIP_R }));
+    // classe esplicita: il gettone non e' piu' il primo <circle> del gruppo
+    g.append(svgEl("circle", { class:"pip", cx, cy, r:PIP_R }));
     const lg = svgEl("text", { class:"lg", x:cx, y:cy+1, "text-anchor":"middle", "dominant-baseline":"central" });
     g.append(lg);
     // centro di potere: uno solo per provincia (§16.4). L'icona sta sopra il
@@ -704,6 +806,9 @@ const clampAtkDice = (fromId, toId) => {
 };
 let combatFx = null;      // {t, from, to, rolls, attacker, defender, conquered}
 let combatFxTimer = null;
+/* combattimento archiviato dal giocatore (ritirata): senza questo, il render
+   successivo lo riscoprirebbe come "nuovo" e rimetterebbe la freccia */
+let combatFxDismissed = null;
 
 /* accorcia il segmento agli estremi per non coprire i gettoni */
 function arrowPoints(a, b, trim) {
@@ -723,20 +828,26 @@ function drawArrow(g, from, to, color, opts = {}) {
   const p = arrowPoints(a, b, PIP_R + 6);
   if (p.len < PIP_R * 2) return null;
 
-  const HEAD = 15;
-  // la punta e' un triangolo disegnato a mano: niente <marker>, che eredita
-  // male il colore e scala in modo imprevedibile dentro la viewBox
+  // un cuneo unico, come in RISK II: base larga appoggiata al gettone
+  // attaccante che si assottiglia fino alla punta sul difensore. Niente linea
+  // + <marker>: la forma sola dice gia' chi attacca chi, anche senza colore.
+  const BASE = PIP_R * 0.9;   // semilarghezza sull'attaccante
+  const NECK = 9;             // semilarghezza dove parte la punta
+  const HEAD = 22;            // lunghezza della punta
   const hx = p.x2, hy = p.y2;
-  const bx = hx - p.ux * HEAD, by = hy - p.uy * HEAD;
   const nx = -p.uy, ny = p.ux;
+  // se i due gettoni sono vicini la punta si mangia tutto il cuneo: la accorcia
+  const head = Math.min(HEAD, p.len * 0.45);
+  const kx = hx - p.ux * head, ky = hy - p.uy * head;
+  const neck = Math.min(NECK, BASE);
+  const pt = (x, y, w) => `${x + nx * w},${y + ny * w}`;
 
-  g.append(svgEl("line", {
-    class: "atkLine" + (opts.pending ? " pending" : ""),
-    x1: p.x1, y1: p.y1, x2: bx, y2: by, stroke: color,
-  }));
   g.append(svgEl("polygon", {
-    class: "atkHead", fill: color,
-    points: `${hx},${hy} ${bx + nx * HEAD * 0.55},${by + ny * HEAD * 0.55} ${bx - nx * HEAD * 0.55},${by - ny * HEAD * 0.55}`,
+    class: "atkWedge" + (opts.pending ? " pending" : ""), fill: color,
+    points: [
+      pt(p.x1, p.y1, BASE), pt(kx, ky, neck), `${hx},${hy}`,
+      pt(kx, ky, -neck), pt(p.x1, p.y1, -BASE),
+    ].join(" "),
   }));
   return { mx: (p.x1 + hx) / 2, my: (p.y1 + hy) / 2 };
 }
@@ -747,8 +858,12 @@ function renderAttackArrow(st) {
   g.innerHTML = "";
 
   const ph = st.turn.phase;
+  // il bersaglio dev'essere ancora nemico: dopo una conquista la selezione
+  // resta, ma puntare una freccia d'attacco su una provincia diventata tua
+  // non vuol dire niente
   const aiming = ph === "LAND_ATTACKS" && !st.pending.occupation
-    && isMyTurn() && ui.sel.from && ui.sel.to;
+    && isMyTurn() && ui.sel.from && ui.sel.to
+    && isMine(ui.sel.from) && isEnemy(ui.sel.to);
   // stessa coppia appena combattuta e ancora selezionata: una freccia sola,
   // con i dadi dell'esito sopra e il badge di mira al centro, cosi' si puo'
   // rilanciare subito senza aspettare che l'effetto svanisca
@@ -762,35 +877,12 @@ function renderAttackArrow(st) {
 
   if (!aiming) return;
 
+  // sulla mappa resta il solo cuneo: i dadi, la loro scelta e i limiti di
+  // §10.5 sono affare dell'arena, ripeterli qui sporcava la plancia
   const col = COLOR_HEX[myColor()] || "#ccc";
   const mid = drawArrow(g, ui.sel.from, ui.sel.to, col, { pending: true });
   if (!mid) return;
   if (samePair) drawCombatFx(g, mid, combatFx);
-
-  const rg = attackDiceRange(ui.sel.from, ui.sel.to);
-  const badge = svgEl("g", { class: "atkDice" + (rg.ok ? "" : " bad") });
-  badge.append(svgEl("circle", { cx: mid.mx, cy: mid.my, r: 15, fill: rg.ok ? col : "#7a2c2c" }));
-  const t = svgEl("text", { x: mid.mx, y: mid.my + 1, "text-anchor":"middle", "dominant-baseline":"central" });
-  const tip = svgEl("title", {});
-  if (rg.ok) {
-    const dice = clampAtkDice(ui.sel.from, ui.sel.to);
-    t.textContent = `${dice}🎲`;
-    tip.textContent = rg.min === rg.max
-      ? `${dice} dadi (obbligati) · tocca ancora ${prov(ui.sel.to).name} per attaccare`
-      : `${dice} dadi (tocca per cambiare, ${rg.min}-${rg.max}) · tocca ancora ${prov(ui.sel.to).name} per attaccare`;
-    // tocco sul badge: cicla i dadi dentro i valori ammessi, senza pannello
-    badge.addEventListener("click", ev => {
-      ev.stopPropagation();
-      ui.vals.atkDice = dice >= rg.max ? rg.min : dice + 1;
-      render();
-    });
-  } else {
-    t.textContent = "✕";
-    tip.textContent = `Servono almeno ${rg.min + 1} legioni in ${prov(ui.sel.from).name}: ` +
-      `il difensore tira ${rg.min} dadi e non puoi usarne di meno (§10.5)`;
-  }
-  badge.append(t, tip);
-  g.append(badge);
 }
 
 /* dadi dell'ultimo tiro, sopra la freccia */
@@ -819,10 +911,459 @@ function noteCombatFx(st) {
   const lc = st.lastCombat;
   if (!lc || lc.kind !== "land" || !lc.rolls || !lc.rolls.length) return;
   if (combatFx && combatFx.t === lc.t) return;
+  if (combatFxDismissed === lc.t) return;   // ritirata: non riproporlo
+  // se l'arena e' aperta su questa coppia, il tiro si guarda li'. Va fatto
+  // PRIMA di ogni uscita anticipata: e' la chiamata che ferma i dadi, saltarla
+  // li lascia a girare per sempre
+  if (duel && duel.rolling && lc.from === duel.from && lc.to === duel.to && lc.t !== duel.shownT) {
+    duel.shownT = lc.t;
+    duelSettle(lc);
+  }
+  // conquista tua: l'esito lo stai gia' guardando nel riquadro, e sulla mappa
+  // conta solo il territorio che cambia colore. Per gli altri giocatori invece
+  // la freccia coi dadi resta: e' il loro unico modo di vedere cos'e' successo
+  if (lc.conquered && lc.attacker === myColor()) {
+    combatFxDismissed = lc.t;
+    // via anche quella del tiro precedente: ha un timer suo e resterebbe
+    // appesa sulla provincia appena presa
+    clearTimeout(combatFxTimer);
+    combatFx = null;
+    return;
+  }
   combatFx = { t: lc.t, from: lc.from, to: lc.to, rolls: lc.rolls,
     attacker: lc.attacker, defender: lc.defender, conquered: lc.conquered };
   clearTimeout(combatFxTimer);
   combatFxTimer = setTimeout(() => { combatFx = null; renderAttackArrow(lastState); }, ATK_FX_MS);
+}
+
+/* ============ arena dei dadi ============
+   Il secondo tocco sul bersaglio non tira piu' di nascosto: apre questo
+   riquadro, dove si sceglie quanti dadi usare e si guarda il tiro. Resta
+   aperto dopo l'esito, perche' sulla stessa provincia si insiste quasi
+   sempre piu' volte di fila. */
+const DUEL_ROLL_MS = 800;    // quanto girano prima di fermarsi
+const DUEL_SETTLE_MS = 130;  // scarto fra un dado e il successivo
+
+let duel = null; // {from, to, rolling, shownT, faces, result, startedAt}
+let duelSpin = null;
+
+function openDuel(from, to) {
+  duel = { from, to, rolling: false, shownT: lastState.lastCombat ? lastState.lastCombat.t : 0,
+    faces: null, result: null,
+    // forze all'inizio dello scontro: servono per il bilancio finale, quando
+    // sul tabellone restano solo i sopravvissuti
+    start: { a: prov(from).legions, d: prov(to).legions } };
+  renderDuel();
+}
+/* niente render() qui dentro: closeDuel viene chiamata anche DA render */
+function closeDuel() {
+  clearInterval(duelSpin); duelSpin = null;
+  duel = null;
+  $("duelWrap").classList.remove("on");
+}
+
+function duelRoll() {
+  if (!duel || duel.rolling) return;
+  const dice = clampAtkDice(duel.from, duel.to);
+  const defN = Math.min(3, prov(duel.to).legions);
+  duel.rolling = true;
+  duel.result = null;
+  duel.startedAt = Date.now();
+  duel.faces = { att: Array(dice).fill(1), def: Array(defN).fill(1) };
+  // le legioni si aggiornano appena il server risponde: congelale, altrimenti
+  // il conteggio rivela l'esito mentre i dadi stanno ancora girando
+  duel.frozen = { a: prov(duel.from).legions, d: prov(duel.to).legions,
+    owner: prov(duel.to).owner };
+  // le facce girano finche' non arriva l'esito dal server
+  clearInterval(duelSpin);
+  duelSpin = setInterval(() => {
+    if (!duel || !duel.faces) return;
+    const r = () => 1 + Math.floor(Math.random() * 6);
+    duel.faces.att = duel.faces.att.map(r);
+    duel.faces.def = duel.faces.def.map(r);
+    renderDuel();
+  }, 80);
+  renderDuel();
+  sendCmd("land_attack_roll", { from: duel.from, to: duel.to, attackDice: dice });
+}
+
+/* esito arrivato dal server: ferma i dadi, ma mai prima di DUEL_ROLL_MS,
+   altrimenti in locale il server risponde cosi' in fretta che il tiro non
+   si vede nemmeno */
+function duelSettle(lc) {
+  const wait = Math.max(0, DUEL_ROLL_MS - (Date.now() - duel.startedAt));
+  setTimeout(() => {
+    if (!duel) return;
+    clearInterval(duelSpin); duelSpin = null;
+    const last = lc.rolls[lc.rolls.length - 1];
+    duel.faces = { att: [...last.att], def: [...last.def] };
+    duel.result = { att: last.att, def: last.def, attLoss: last.attLoss,
+      defLoss: last.defLoss, conquered: lc.conquered };
+    // il contatore somma tutto lo scontro su questa provincia, non il solo tiro
+    duel.totLoss = duel.totLoss || { att: 0, def: 0 };
+    duel.totLoss.att += last.attLoss;
+    duel.totLoss.def += last.defLoss;
+    // i dadi si fermano uno alla volta, non tutti insieme
+    const tot = Math.max(duel.faces.att.length, duel.faces.def.length);
+    duel.settling = tot;
+    renderDuel();
+    for (let i = 0; i <= tot; i++) {
+      setTimeout(() => {
+        if (!duel) return;
+        duel.settling = tot - i;
+        if (i === tot) duel.rolling = false;
+        renderDuel();
+      }, i * DUEL_SETTLE_MS);
+    }
+  }, wait);
+}
+
+/* ===== le statuine in campo =====
+   Come sul tavolo: un pezzo per legione, e sopra le 19 si passa ai sigilli da
+   10, altrimenti non ci starebbero. Quando le perdite superano i legionari
+   singoli si "rompe" un sigillo: lo si barra e tornano in campo i suoi 10,
+   esattamente il cambio che si fa con le pedine vere. */
+const SIGILLO = 10;
+const SOGLIA_SIGILLI = 19;   // fino a 19 tutti singoli, da 20 in su i sigilli
+
+/* n legioni -> quanti sigilli e quanti pezzi singoli */
+function scomponi(n) {
+  if (n <= SOGLIA_SIGILLI) return { sigilli: 0, singoli: n };
+  const sigilli = Math.floor(n / SIGILLO);
+  return { sigilli, singoli: n - sigilli * SIGILLO };
+}
+
+function statuinaEl(color, fallen) {
+  const s = svgEl("svg", { class: "statuina" + (fallen ? " fallen" : ""), viewBox: "0 0 14 20", width: 14, height: 20 });
+  // elmo + corpo: una sagoma sola, leggibile anche a 14px
+  s.append(svgEl("path", {
+    d: "M7 1 C4.5 1 3 2.6 3 4.6 L3 6.2 C3 7 3.4 7.6 4 7.9 L3.2 9 C1.8 10.2 1 12 1 14.2 L1 18.5 L13 18.5 L13 14.2 C13 12 12.2 10.2 10.8 9 L10 7.9 C10.6 7.6 11 7 11 6.2 L11 4.6 C11 2.6 9.5 1 7 1 Z",
+    fill: color, stroke: "#0b111a", "stroke-width": 1,
+  }));
+  return s;
+}
+
+function sigilloEl(color, rotto) {
+  const g = svgEl("svg", { class: "sigillo" + (rotto ? " rotto" : ""), viewBox: "0 0 22 22", width: 22, height: 22 });
+  g.append(svgEl("circle", { cx: 11, cy: 11, r: 9.2, fill: color, stroke: "#0b111a", "stroke-width": 1.4 }));
+  const t = svgEl("text", { x: 11, y: 11.5, "text-anchor": "middle", "dominant-baseline": "central" });
+  t.textContent = "10";
+  g.append(t);
+  if (rotto) {
+    // la X del cambio: questo sigillo e' stato sciolto in 10 legionari
+    g.append(svgEl("path", { d: "M3 3 L19 19 M19 3 L3 19", stroke: "#ff5f5f", "stroke-width": 2.6, "stroke-linecap": "round" }));
+  }
+  return g;
+}
+
+/* Schiera le legioni di un lato. `prima` e' la forza all'inizio del tiro e
+   `perse` le perdite appena subite: la scomposizione va fatta sullo stato di
+   partenza, altrimenti il sigillo si "aggiusta" da solo e il cambio non si
+   vede mai. I caduti restano in campo barrati fino al tiro successivo. */
+function schieraEl(prima, perse, color) {
+  perse = perse || 0;
+  const wrap = el("div", { class: "duelForza" });
+  if (prima <= 0) { wrap.append(el("span", { class:"forzaVuota" }, "—")); return wrap; }
+
+  let { sigilli, singoli } = scomponi(prima);
+  let rotti = 0;
+  // perdite piu' grandi dei legionari singoli: si scioglie un sigillo e i suoi
+  // 10 tornano in campo, poi si pagano le perdite
+  if (perse > singoli && sigilli > 0) {
+    rotti = Math.min(sigilli, Math.ceil((perse - singoli) / SIGILLO));
+    sigilli -= rotti;
+    singoli += rotti * SIGILLO;
+  }
+  const attivi = Math.max(0, singoli - perse);
+  const caduti = Math.min(perse, singoli);
+
+  for (let i = 0; i < sigilli; i++) wrap.append(sigilloEl(color, false));
+  for (let i = 0; i < rotti; i++) wrap.append(sigilloEl(color, true));
+  for (let i = 0; i < attivi; i++) wrap.append(statuinaEl(color, false));
+  for (let i = 0; i < caduti; i++) wrap.append(statuinaEl(color, true));
+
+  wrap.append(el("div", { class:"forzaTot" }, String(prima - perse)));
+  return wrap;
+}
+
+function dieEl(v, color, spinning, mark) {
+  const cls = "dieBig" + (spinning ? " rolling" : mark ? " " + mark : "");
+  return el("span", { class: cls, style: `color:${color}` }, DIE_FACE[v-1] || "?");
+}
+
+/* Il cuneo fra due dadi: stessa forma della freccia d'attacco sulla mappa,
+   base sul dado che vince e punta su quello che perde. `versoDestra` = ha
+   vinto l'attaccante (che sta a sinistra). */
+function cuneoEl(versoDestra, color) {
+  const W = 40, H = 22, BASE = 7, NECK = 3.5, HEAD = 13;
+  const s = svgEl("svg", { class:"duelCuneo", viewBox:`0 0 ${W} ${H}`, width:W, height:H });
+  const cy = H / 2;
+  // coordinate della coda (lato vincente) e della punta (lato perdente)
+  const x0 = versoDestra ? 3 : W - 3;
+  const x1 = versoDestra ? W - 3 : 3;
+  const kx = versoDestra ? x1 - HEAD : x1 + HEAD;
+  s.append(svgEl("polygon", {
+    fill: color, stroke: "#0b111a", "stroke-width": 1, "stroke-linejoin": "round",
+    points: [
+      `${x0},${cy - BASE}`, `${kx},${cy - NECK}`, `${x1},${cy}`,
+      `${kx},${cy + NECK}`, `${x0},${cy + BASE}`,
+    ].join(" "),
+  }));
+  return s;
+}
+
+/* ===== vista di conquista =====
+   Vinto lo scontro, il riquadro smette di essere un'arena e diventa il momento
+   in cui si decide quante legioni entrano nella provincia presa. In cima il
+   bilancio della battaglia: con quanti si e' partiti e quanti sono caduti. */
+function renderDuelVittoria(box, a, d, atkCol, defCol, defName) {
+  const occ = lastState.pending.occupation;
+  box.append(el("div", { class:"duelTitle duelWin" }, `Conquista di ${d.name}! 🏛️`));
+
+  const st0 = duel.start || { a: a.legions, d: d.legions };
+  const tot = duel.totLoss || { att: 0, def: 0 };
+  const stat = el("div", { class:"duelStats" });
+  const colonna = (titolo, color, iniziali, perse) => {
+    const c = el("div", { class:"statCol" });
+    c.append(el("div", { class:"statWho", style:`color:${color}` }, titolo));
+    c.append(el("div", { class:"statRiga" },
+      el("span", { class:"statNum" }, String(iniziali)), " all'inizio"));
+    c.append(el("div", { class:"statRiga" },
+      el("span", { class:"statNum statPerse" }, `−${perse}`), " caduti"));
+    // "superstiti", non "rimasti": sul tabellone questi uomini sono gia'
+    // divisi fra provincia di partenza e provincia presa
+    c.append(el("div", { class:"statRiga statResto" },
+      el("span", { class:"statNum" }, String(iniziali - perse)), " superstiti"));
+    return c;
+  };
+  stat.append(colonna("Attacco", atkCol, st0.a, tot.att),
+    el("div", { class:"duelGap" }),
+    colonna("Difesa", defCol, st0.d, tot.def));
+  box.append(stat);
+
+  // niente occupazione in sospeso (es. gia' risolta): resta solo il bilancio
+  if (!occ) {
+    const btns = el("div", { class:"duelBtns" });
+    const b = el("button", {}, "Chiudi");
+    b.onclick = () => { closeDuel(); render(); };
+    btns.append(b);
+    box.append(btns);
+    return;
+  }
+
+  // §14.2: nella provincia di partenza deve restare la guarnigione minima
+  const maxN = a.legions - minGarrisonOf(duel.from);
+  if (maxN <= 0) {
+    box.append(el("div", { class:"duelSub", style:"margin-top:10px" },
+      `Da ${a.name} non puoi spostare altre legioni: deve restarci la guarnigione.`));
+    const btns = el("div", { class:"duelBtns" });
+    const b = el("button", {}, "Va bene");
+    b.onclick = () => { closeDuel(); render(); };
+    btns.append(b);
+    box.append(btns);
+    return;
+  }
+
+  if (duel.sposta === undefined) duel.sposta = maxN;
+  duel.sposta = Math.max(0, Math.min(maxN, duel.sposta));
+
+  box.append(el("div", { class:"duelSub", style:"margin-top:12px" },
+    `Quante legioni entrano in ${d.name}?`));
+
+  // le due schiere si dividono sotto gli occhi: chi resta e chi avanza
+  const split = el("div", { class:"duelRow duelSplit" });
+  const restano = a.legions - duel.sposta;
+  const entrano = d.legions + duel.sposta;
+  const lato = (nome, n) => {
+    const c = el("div", { class:"statCol" });
+    c.append(el("div", { class:"statWho" }, nome));
+    c.append(schieraEl(n, 0, atkCol));
+    return c;
+  };
+  split.append(lato(a.name, restano), el("div", { class:"duelVs" }, "→"),
+    lato(d.name, entrano));
+  box.append(split);
+
+  const pick = el("div", { class:"duelPick" });
+  const meno = el("button", {}, "−");
+  meno.onclick = () => { duel.sposta--; renderDuel(); };
+  meno.disabled = duel.sposta <= 0;
+  const piu = el("button", {}, "+");
+  piu.onclick = () => { duel.sposta++; renderDuel(); };
+  piu.disabled = duel.sposta >= maxN;
+  const q = el("span", { class:"duelQta" }, String(duel.sposta));
+  const range = el("input", { type:"range", min:"0", max:String(maxN), value:String(duel.sposta), class:"duelRange" });
+  range.oninput = e => { duel.sposta = Number(e.target.value); renderDuel(); };
+  pick.append(meno, q, piu);
+  box.append(pick, range);
+
+  const btns = el("div", { class:"duelBtns" });
+  const go = el("button", {}, duel.sposta > 0 ? `Sposta ${duel.sposta} →` : "Non spostare");
+  go.onclick = () => {
+    if (duel.sposta > 0) sendCmd("occupy_extra", { count: duel.sposta });
+    ui.sel = {};   // quel bersaglio non esiste piu': si riparte da capo
+    closeDuel(); render();
+  };
+  btns.append(go);
+  box.append(btns);
+}
+
+function renderDuel() {
+  const wrap = $("duelWrap"), box = $("duelBox");
+  if (!duel || !lastState) { wrap.classList.remove("on"); return; }
+  wrap.classList.add("on");
+  box.innerHTML = "";
+
+  const a = prov(duel.from), d = prov(duel.to);
+  const atkCol = COLOR_HEX[myColor()] || "#ccc";
+  const defCol = ownerFill((duel.frozen && duel.frozen.owner) || d.owner);
+  const rg = attackDiceRange(duel.from, duel.to);
+
+  // il difensore ha un nome, non un colore: "Marco", non "BLUE". Va preso da
+  // frozen: appena conquisti, l'owner e' gia' tuo e il riquadro finirebbe per
+  // dire che stavi combattendo contro te stesso
+  const defOwn = String((duel.frozen && duel.frozen.owner) || d.owner || "?");
+  const defPl = lastState.players.find(p => p.color === defOwn);
+  const defName = defPl ? defPl.name
+    : defOwn.startsWith("NEUTRAL_") ? "Neutrali" : defOwn;
+
+  // vinta: il riquadro cambia mestiere e passa allo spostamento
+  if (duel.result && duel.result.conquered && !duel.rolling) {
+    renderDuelVittoria(box, a, d, atkCol, defCol, defName);
+    return;
+  }
+
+  // dopo una conquista le legioni sul tabellone non descrivono piu' lo scontro
+  // appena visto: si resta sui numeri di partenza finche' il riquadro e' su
+  const tieni = duel.rolling || (duel.result && duel.result.conquered);
+  const fz = tieni && duel.frozen ? duel.frozen : { a: a.legions, d: d.legions };
+  box.append(el("div", { class:"duelTitle" }, `${a.name} → ${d.name}`));
+  box.append(el("div", { class:"duelSub" }, `${fz.a} legioni contro ${fz.d}`));
+
+  // quante facce mostrare: durante il tiro quelle che girano, a riposo la
+  // scelta corrente contro quelle che il difensore tirera'
+  const dice = clampAtkDice(duel.from, duel.to);
+  const defN = Math.min(3, d.legions);
+  const faces = duel.faces || { att: Array(Math.max(0, dice)).fill(1), def: Array(defN).fill(1) };
+  const res = duel.result;
+
+  // i dadi si affrontano in verticale, dal piu' alto al piu' basso: ogni riga
+  // e' un duello fra il dado dell'attaccante e quello del difensore di pari
+  // rango, come si allineano sul tavolo
+  const ordina = arr => [...arr].sort((x, y) => y - x);
+  const att = ordina(faces.att), def = ordina(faces.def);
+
+  const arena = el("div", { class:"duelArena" });
+  const head = el("div", { class:"duelRow duelHead" });
+  head.append(el("div", { class:"duelWho", style:`color:${atkCol}` }, "Tu"),
+    el("div", { class:"duelVs" }, "⚔"),
+    el("div", { class:"duelWho", style:`color:${defCol}` }, defName));
+  arena.append(head);
+
+  const righe = Math.max(att.length, def.length);
+  for (let i = 0; i < righe; i++) {
+    const riga = el("div", { class:"duelRow" });
+    // i dadi si fermano uno alla volta: quelli ancora in coda girano
+    const spinning = n => duel.rolling && (!res || i >= n - (duel.settling || 0));
+    const sfida = att[i] !== undefined && def[i] !== undefined;
+    // §10.5: il difensore vince la parita'
+    const attVince = sfida && att[i] > def[i];
+    const mostraEsito = sfida && res && !duel.rolling;
+
+    riga.append(att[i] !== undefined
+      ? dieEl(att[i], atkCol, spinning(att.length), mostraEsito ? (attVince ? "won" : "lost") : null)
+      : el("span", { class:"dieVuoto" }, "·"));
+    // il cuneo punta dal dado che vince a quello che perde: stessa forma della
+    // freccia sulla mappa, cosi' si legge senza spiegazioni
+    riga.append(mostraEsito ? cuneoEl(attVince, attVince ? atkCol : defCol)
+      : el("div", { class:"duelGap" }));
+    riga.append(def[i] !== undefined
+      ? dieEl(def[i], defCol, spinning(def.length), mostraEsito ? (attVince ? "lost" : "won") : null)
+      : el("span", { class:"dieVuoto" }, "·"));
+    arena.append(riga);
+  }
+
+  // le statuine in campo: mentre i dadi girano restano quelle di partenza,
+  // le perdite compaiono solo quando i dadi si sono fermati. La forza e' quella
+  // a inizio tiro: dopo un esito le legioni sul tabellone sono gia' decurtate,
+  // e sommarci i caduti li conterebbe due volte
+  const base = duel.frozen && (duel.rolling || res) ? duel.frozen : { a: a.legions, d: d.legions };
+  const perse = s => res && !duel.rolling ? (s === "att" ? res.attLoss : res.defLoss) : 0;
+  const forze = el("div", { class:"duelRow duelForze" });
+  forze.append(schieraEl(base.a, perse("att"), atkCol),
+    el("div", { class:"duelGap" }),
+    schieraEl(base.d, perse("def"), defCol));
+  arena.append(forze);
+  box.append(arena);
+
+  // perdite totali dello scontro su questa provincia, non solo dell'ultimo tiro
+  const tot = duel.totLoss || { att: 0, def: 0 };
+  const cnt = el("div", { class:"duelRow duelCount" });
+  cnt.append(el("div", { class:"lossA" }, `perdite: ${tot.att}`),
+    el("div", { class:"duelGap" }),
+    el("div", { class:"lossD" }, `perdite: ${tot.def}`));
+  box.append(cnt);
+
+  const loss = el("div", { class:"duelLoss" });
+  if (res && !duel.rolling) {
+    if (res.attLoss) loss.append(el("span", { class:"lossA" }, `−${res.attLoss} tue `));
+    if (res.defLoss) loss.append(el("span", { class:"lossD" }, `−${res.defLoss} sue`));
+    if (!res.attLoss && !res.defLoss) loss.append("nessuna perdita");
+  }
+  box.append(loss);
+
+  // selettore dadi: attivo solo quando c'e' davvero una scelta
+  if (!duel.rolling && rg.ok) {
+    const pick = el("div", { class:"duelPick" });
+    pick.append(el("span", { class:"lbl" }, "Dadi:"));
+    for (let n = 1; n <= 3; n++) {
+      const usable = n >= rg.min && n <= rg.max;
+      const b = el("button", { class: n === dice ? "sel" : "" }, String(n));
+      if (!usable) b.disabled = true;
+      else b.onclick = () => { ui.vals.atkDice = n; renderDuel(); render(); };
+      pick.append(b);
+    }
+    if (rg.min === rg.max) {
+      pick.append(el("span", { class:"lbl", style:"margin-left:6px" },
+        `obbligati (il difensore ne tira ${rg.min})`));
+    }
+    box.append(pick);
+  }
+  if (!rg.ok) {
+    box.append(el("div", { class:"duelWarn" },
+      `Non puoi attaccare: servono almeno ${rg.min + 1} legioni in ${a.name}, ` +
+      `il difensore tira ${rg.min} dadi e non puoi usarne di meno.`));
+  }
+
+  const btns = el("div", { class:"duelBtns" });
+  if (rg.ok) {
+    const b = el("button", {}, duel.rolling ? "…" : res ? "Tira ancora" : "Tira!");
+    b.disabled = duel.rolling;
+    b.onclick = duelRoll;
+    btns.append(b);
+  }
+  // ritirarsi = smettere di tirare su questa provincia. Se il sangue e' gia'
+  // stato versato lo si dice, e si molla anche la mira: la freccia sparisce e
+  // si riparte scegliendo un altro bersaglio. Prima del primo tiro non c'e'
+  // niente da cui ritirarsi, e' solo un ripensamento.
+  const ritirata = !!res;
+  const close = el("button", { class: ritirata ? "ritira" : "" },
+    ritirata ? "🏳 Ritirati" : rg.ok ? "Annulla" : "Chiudi");
+  close.disabled = duel.rolling;
+  close.onclick = () => {
+    if (ritirata) {
+      ui.sel = {};
+      // via anche la freccia dell'ultimo scontro: ritirarsi vuol dire che
+      // sulla mappa non resta traccia dell'attacco appena abbandonato
+      clearTimeout(combatFxTimer);
+      if (lastState.lastCombat) combatFxDismissed = lastState.lastCombat.t;
+      combatFx = null;
+    }
+    closeDuel();
+    render();
+  };
+  btns.append(close);
+  box.append(btns);
 }
 
 function renderScoreTrack(st) {
@@ -946,7 +1487,10 @@ function initMapGestures() {
   const cancelLongPress = () => { clearTimeout(longPressTimer); longPressTimer = null; };
 
   svg.addEventListener("pointerdown", e => {
-    try { svg.setPointerCapture(e.pointerId); } catch {}
+    // NIENTE setPointerCapture qui: col mouse la capture fa recapitare il click
+    // all'elemento che cattura (l'<svg>) invece che al gruppo della provincia,
+    // e onProvClick non parte mai. La capture serve solo mentre si trascina,
+    // quindi la prendiamo dopo, quando il gesto diventa davvero un pan.
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pts.size === 1) {
       moved = false;
@@ -982,6 +1526,7 @@ function initMapGestures() {
       // di pochi pixel faceva scattare "trascinamento" e il click spariva.
       const far = startPt && (Math.hypot(e.clientX - startPt.x, e.clientY - startPt.y) > 10);
       if (moved || far) {
+        if (!moved) { try { svg.setPointerCapture(e.pointerId); } catch {} }
         moved = true;
         cancelLongPress();
         const r = svg.getBoundingClientRect();
@@ -1002,6 +1547,7 @@ function initMapGestures() {
   });
   const end = e => {
     pts.delete(e.pointerId);
+    try { svg.releasePointerCapture(e.pointerId); } catch {}
     cancelLongPress();
     if (pts.size === 0 && moved) dragSuppressClick = true;
   };
@@ -1223,11 +1769,7 @@ function onProvClick(id) {
       // primo tocco: miri, e compare la freccia. secondo tocco sullo stesso
       // bersaglio: attacchi, senza passare dal pannello
       if (ui.sel.to === id) {
-        if (attackDiceRange(ui.sel.from, id).ok) {
-          sendCmd("land_attack_roll", {
-            from: ui.sel.from, to: id, attackDice: clampAtkDice(ui.sel.from, id),
-          });
-        }
+        openDuel(ui.sel.from, id);   // l'arena dei dadi: si sceglie e si tira li'
       } else {
         ui.sel.to = id;
       }
@@ -1296,6 +1838,18 @@ function render() {
   renderLog(st);
   maybeShowCombatPop(st);
 
+  // l'arena si chiude da sola se la coppia non ha piu' senso: provincia
+  // conquistata (parte l'occupazione), fase finita, o non e' piu' il tuo turno
+  if (duel) {
+    // mentre i dadi girano, o quando il tiro ha appena conquistato, l'arena
+    // resta su: la conquista fa scattare pending.occupation e senza questa
+    // eccezione il riquadro sparirebbe proprio sul colpo vincente
+    const mostrando = duel.rolling || (duel.result && duel.result.conquered);
+    const vivo = st.turn.phase === "LAND_ATTACKS" && isMyTurn() && (mostrando
+      || (!st.pending.occupation && isMine(duel.from) && isEnemy(duel.to)));
+    if (!vivo) closeDuel(); else renderDuel();
+  }
+
   // vittoria
   if (st.winner) {
     $("bannerText").textContent = `🏆 ${st.winner} vince!`;
@@ -1327,7 +1881,7 @@ function renderMapState(st) {
   for (const [id, pr] of Object.entries(st.map.provinces)) {
     const g = $(`prov_${id}`);
     if (!g) continue;
-    g.querySelector("circle").setAttribute("fill", ownerFill(pr.owner));
+    g.querySelector("circle.pip").setAttribute("fill", ownerFill(pr.owner));
     const extra = ui.placements[id] ? `+${ui.placements[id]}` : "";
     g.querySelector(".lg").textContent = pr.legions > 0 ? `${pr.legions}${extra}` : (extra || "");
     g.querySelector(".pcIcon").textContent = pr.power_center ? "🏛️" : "";
@@ -1778,10 +2332,9 @@ function renderActions(st) {
           add(hint(`Attacco impossibile: ${prov(ui.sel.to).name} difende con ${rg.min} dadi e ` +
             `da ${prov(ui.sel.from).name} puoi tirarne al massimo ${rg.max} (§10.5).`));
         } else {
-          add(row(el("label", { style:"align-self:center" }, "Dadi:"), diceBtns("atkDice", rg.max, rg.min)));
-          add(row(actionBtn("Attacca ⚔️", () => {
-            sendCmd("land_attack_roll", { from: ui.sel.from, to: ui.sel.to, attackDice: clampAtkDice(ui.sel.from, ui.sel.to) });
-          }, "primary")));
+          // anche da qui si passa dall'arena dei dadi: il tiro si guarda
+          // sempre nello stesso posto, da qualunque parte lo si lanci
+          add(row(actionBtn("Attacca ⚔️", () => openDuel(ui.sel.from, ui.sel.to), "primary")));
         }
       }
       add(row(actionBtn("Fine attacchi", () => sendCmd("end_attacks"))));
@@ -1833,6 +2386,7 @@ function maybeShowCombatPop(st) {
   if (shownCombatT === null) { shownCombatT = lc ? lc.t : 0; return; } // niente popup al primo stato
   if (!lc || lc.t === shownCombatT) return;
   shownCombatT = lc.t;
+  if (duel) return;   // l'arena mostra gia' il tiro: niente doppio popup
   if (!window.matchMedia("(max-width: 820px)").matches) return;
   const pop = $("combatPop");
   pop.innerHTML = $("combatBox").innerHTML;
