@@ -232,4 +232,22 @@ async def ws_endpoint(ws: WebSocket, room: str, player_name: str):
 load_rooms()
 
 # web client
+
+
+@app.middleware("http")
+async def no_cache_html(request, call_next):
+    """L'HTML non va mai in cache.
+
+    Tutta l'app sta in index.html: senza questo header il browser puo'
+    riproporre la versione vecchia dopo un aggiornamento, e si finisce a
+    cercare bug gia' corretti in un file che il giocatore non sta usando.
+    Le immagini restano cacheabili (board.jpg cambia di rado ed e' pesante).
+    """
+    resp = await call_next(request)
+    path = request.url.path
+    if path.endswith(".html") or path.endswith("/"):
+        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return resp
+
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
