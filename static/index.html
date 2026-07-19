@@ -238,6 +238,9 @@
     }
     /* mira non ancora confermata: il cuneo pulsa invece di stare fermo */
     .atkWedge.pending { animation: atkPulse .9s ease-in-out infinite; }
+    /* rotte alternative ancora da scegliere: in campo ma spente, cosi' la
+       rotta decisa (che pulsa) si distingue a colpo d'occhio */
+    .atkWedge.alt { opacity: .4; }
     @keyframes atkPulse { 50% { opacity: .55; } }
     .atkFx { pointer-events: none; }
     .atkFx rect { fill: rgba(11,17,26,.88); stroke: var(--accent); stroke-width: 1.5; }
@@ -412,6 +415,14 @@
     .duelBtns button.ritira { color: #ffb4b4; border-color: rgba(255,120,120,.45); }
     .duelBtns button.ritira:hover { border-color: #ff8a8a; }
     .duelWarn { font-size: 12px; color: #ff8a8a; margin-top: 10px; }
+    /* §12.3: l'avviso che l'attacco via mare non si puo' abbandonare. Va letto
+       PRIMA di salpare, non e' una nota a pie' di pagina */
+    .sbarcoWarn {
+      border: 1px solid rgba(255,120,120,.35); border-radius: 8px;
+      padding: 8px 10px; line-height: 1.35; background: rgba(255,120,120,.07);
+    }
+    .duelBtns button.salpa { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .duelLose { color: #ff8a8a; font-weight: 700; font-size: 15px; }
 
     /* menu contestuale su pressione prolungata di una provincia/mare */
     #tileMenu {
@@ -701,6 +712,10 @@ function connect(spectate = false) {
     if (msg.type === "state") { lastState = msg.state; render(); }
     if (msg.type === "error") {
       toast(msg.error);
+      // l'arena dello sbarco aspetta l'esito con i dadi che girano: se il
+      // comando e' stato rifiutato quell'esito non arrivera' mai, e senza
+      // questo i dadi resterebbero a girare all'infinito
+      if (sbarco && sbarco.fase === "attesa") { closeSbarco(); render(); }
       if (String(msg.error).includes("cannot join") || String(msg.error).includes("Stanza inesistente")) {
         autoReconnect = false;
         $("joinMsg").textContent = "❌ " + msg.error;
@@ -822,11 +837,56 @@ function arrowPoints(a, b, trim) {
   };
 }
 
+/* Linea di mezzeria del cuneo. Dritta fra i due gettoni, salvo `via`: l'attacco
+   via mare non taglia la terraferma, si inarca fino a passare per il mare che
+   lo rende possibile, cosi' la freccia dice anche DA DOVE sono passate le navi.
+   Il punto di controllo e' scelto perche' la curva passi proprio sul mare. */
+function centerline(a, b, via) {
+  if (!via) return [a, b];
+  const c = [2 * via[0] - (a[0] + b[0]) / 2, 2 * via[1] - (a[1] + b[1]) / 2];
+  const N = 24, pts = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, u = 1 - t;
+    pts.push([u*u*a[0] + 2*u*t*c[0] + t*t*b[0],
+              u*u*a[1] + 2*u*t*c[1] + t*t*b[1]]);
+  }
+  return pts;
+}
+
+/* lunghezza cumulata dei segmenti di una polilinea */
+function pathLens(pts) {
+  const acc = [0];
+  for (let i = 1; i < pts.length; i++) {
+    acc.push(acc[i-1] + Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]));
+  }
+  return acc;
+}
+
+/* punto sulla polilinea a distanza `s` dall'inizio, con la tangente locale */
+function pathAt(pts, acc, s) {
+  const tot = acc[acc.length - 1];
+  s = Math.max(0, Math.min(tot, s));
+  let i = 1;
+  while (i < acc.length - 1 && acc[i] < s) i++;
+  const seg = acc[i] - acc[i-1] || 1;
+  const t = (s - acc[i-1]) / seg;
+  const p = [pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * t,
+             pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * t];
+  const dx = pts[i][0] - pts[i-1][0], dy = pts[i][1] - pts[i-1][1];
+  const len = Math.hypot(dx, dy) || 1;
+  return { p, ux: dx / len, uy: dy / len };
+}
+
 function drawArrow(g, from, to, color, opts = {}) {
   const a = PROV_XY[from], b = PROV_XY[to];
   if (!a || !b) return null;
-  const p = arrowPoints(a, b, PIP_R + 6);
-  if (p.len < PIP_R * 2) return null;
+  // il mare di passaggio inarca la freccia; senza, resta il segmento dritto
+  const via = opts.viaSea ? SEA_XY[opts.viaSea] : null;
+  const line = centerline(a, b, via);
+  const acc0 = pathLens(line);
+  const trim = PIP_R + 6;
+  const tot = acc0[acc0.length - 1] - trim * 2;
+  if (tot < PIP_R * 2) return null;
 
   // un cuneo unico, come in RISK II: base larga appoggiata al gettone
   // attaccante che si assottiglia fino alla punta sul difensore. Niente linea
@@ -834,22 +894,32 @@ function drawArrow(g, from, to, color, opts = {}) {
   const BASE = PIP_R * 0.9;   // semilarghezza sull'attaccante
   const NECK = 9;             // semilarghezza dove parte la punta
   const HEAD = 22;            // lunghezza della punta
-  const hx = p.x2, hy = p.y2;
-  const nx = -p.uy, ny = p.ux;
   // se i due gettoni sono vicini la punta si mangia tutto il cuneo: la accorcia
-  const head = Math.min(HEAD, p.len * 0.45);
-  const kx = hx - p.ux * head, ky = hy - p.uy * head;
+  const head = Math.min(HEAD, tot * 0.45);
   const neck = Math.min(NECK, BASE);
-  const pt = (x, y, w) => `${x + nx * w},${y + ny * w}`;
 
+  // campionatura del tratto utile: uno solo per il cuneo dritto (bastano base,
+  // collo e punta), fitta sulla curva, dove il bordo deve seguirla
+  const nCamp = via ? 16 : 1;
+  const stops = [];
+  for (let i = 0; i <= nCamp; i++) stops.push((tot - head) * i / nCamp);
+  const sides = stops.map(s => {
+    const { p, ux, uy } = pathAt(line, acc0, trim + s);
+    const w = BASE + (neck - BASE) * (s / (tot - head || 1));
+    return { p, nx: -uy * w, ny: ux * w };
+  });
+  const tip = pathAt(line, acc0, trim + tot).p;
+
+  const su = sides.map(s => `${s.p[0] + s.nx},${s.p[1] + s.ny}`);
+  const sd = sides.map(s => `${s.p[0] - s.nx},${s.p[1] - s.ny}`).reverse();
   g.append(svgEl("polygon", {
-    class: "atkWedge" + (opts.pending ? " pending" : ""), fill: color,
-    points: [
-      pt(p.x1, p.y1, BASE), pt(kx, ky, neck), `${hx},${hy}`,
-      pt(kx, ky, -neck), pt(p.x1, p.y1, -BASE),
-    ].join(" "),
+    class: "atkWedge" + (opts.alt ? " alt" : opts.pending ? " pending" : ""), fill: color,
+    points: [...su, `${tip[0]},${tip[1]}`, ...sd].join(" "),
   }));
-  return { mx: (p.x1 + hx) / 2, my: (p.y1 + hy) / 2 };
+  // etichetta e dadi vanno a meta' del tratto utile: sulla curva il punto medio
+  // fra i due estremi cadrebbe sulla terraferma, lontano dalla freccia
+  const mid = pathAt(line, acc0, trim + tot / 2).p;
+  return { mx: mid[0], my: mid[1] };
 }
 
 function renderAttackArrow(st) {
@@ -861,7 +931,7 @@ function renderAttackArrow(st) {
   // il bersaglio dev'essere ancora nemico: dopo una conquista la selezione
   // resta, ma puntare una freccia d'attacco su una provincia diventata tua
   // non vuol dire niente
-  const aiming = ph === "LAND_ATTACKS" && !st.pending.occupation
+  const aiming = (ph === "LAND_ATTACKS" || ph === "SEA_ATTACKS") && !st.pending.occupation
     && isMyTurn() && ui.sel.from && ui.sel.to
     && isMine(ui.sel.from) && isEnemy(ui.sel.to);
   // stessa coppia appena combattuta e ancora selezionata: una freccia sola,
@@ -871,7 +941,7 @@ function renderAttackArrow(st) {
 
   if (combatFx && combatFx.from && combatFx.to && !samePair) {
     const c = COLOR_HEX[combatFx.attacker] || "#ccc";
-    const m = drawArrow(g, combatFx.from, combatFx.to, c);
+    const m = drawArrow(g, combatFx.from, combatFx.to, c, { viaSea: combatFx.sea });
     if (m) drawCombatFx(g, m, combatFx);
   }
 
@@ -880,6 +950,23 @@ function renderAttackArrow(st) {
   // sulla mappa resta il solo cuneo: i dadi, la loro scelta e i limiti di
   // §10.5 sono affare dell'arena, ripeterli qui sporcava la plancia
   const col = COLOR_HEX[myColor()] || "#ccc";
+
+  if (ph === "SEA_ATTACKS") {
+    // finche' la rotta non e' decisa si disegnano tutte quelle possibili: la
+    // scelta si vede sulla plancia, e si fa toccando il mare
+    const rotte = rotteBuone(ui.sel.from, ui.sel.to);
+    const scelta = rotte.includes(ui.vals.saSea) ? ui.vals.saSea : null;
+    const da = scelta ? [scelta] : rotte;
+    let mid = null;
+    da.forEach(sid => {
+      const m = drawArrow(g, ui.sel.from, ui.sel.to, col,
+        { pending: !!scelta, alt: !scelta && da.length > 1, viaSea: sid });
+      if (!mid) mid = m;
+    });
+    if (mid && samePair) drawCombatFx(g, mid, combatFx);
+    return;
+  }
+
   const mid = drawArrow(g, ui.sel.from, ui.sel.to, col, { pending: true });
   if (!mid) return;
   if (samePair) drawCombatFx(g, mid, combatFx);
@@ -906,10 +993,43 @@ function drawCombatFx(g, mid, fx) {
   g.append(box);
 }
 
+/* mari in comune fra due province: la traversata puo' avere piu' di una rotta
+   e la si sceglie nell'arena. `ui.vals.saSea` tiene la scelta corrente. */
+function mariComuni(from, to) {
+  if (!from || !to || !prov(from) || !prov(to)) return [];
+  return prov(from).adj_sea.filter(s => prov(to).adj_sea.includes(s));
+}
+/* §12.2: si passa solo dai mari dove si hanno piu' triremi del difensore.
+   I neutrali non hanno flotta, quindi lassu' basta una trireme. */
+function superioritaNavale(sid, defColor) {
+  const mie = myTriremes(sid);
+  if (mie < 1) return false;
+  const dif = defColor && !String(defColor).startsWith("NEUTRAL_")
+    ? (sea(sid).triremes || {})[defColor] || 0 : 0;
+  return mie > dif;
+}
+function rotteBuone(from, to) {
+  return mariComuni(from, to).filter(sid => superioritaNavale(sid, prov(to).owner));
+}
+function mareScelto(from, to) {
+  // fra i mari in comune si sceglie fra quelli dove la traversata e' possibile
+  const buone = rotteBuone(from, to);
+  const c = buone.length ? buone : mariComuni(from, to);
+  if (!c.length) return null;
+  return c.includes(ui.vals.saSea) ? ui.vals.saSea : c[0];
+}
+/* c'e' almeno un bersaglio raggiungibile da questa provincia? Serve a non
+   accendere basi da cui poi non si potrebbe partire per nessuna rotta */
+function haBersagliVieMare(from) {
+  const colpite = new Set(lastState.turn.seaAttackedProvinces || []);
+  return Object.keys(lastState.map.provinces).some(
+    id => isEnemy(id) && !colpite.has(id) && rotteBuone(from, id).length);
+}
+
 /* registra l'esito quando arriva uno stato con un combattimento nuovo */
 function noteCombatFx(st) {
   const lc = st.lastCombat;
-  if (!lc || lc.kind !== "land" || !lc.rolls || !lc.rolls.length) return;
+  if (!lc || (lc.kind !== "land" && lc.kind !== "sea") || !lc.rolls || !lc.rolls.length) return;
   if (combatFx && combatFx.t === lc.t) return;
   if (combatFxDismissed === lc.t) return;   // ritirata: non riproporlo
   // se l'arena e' aperta su questa coppia, il tiro si guarda li'. Va fatto
@@ -918,6 +1038,13 @@ function noteCombatFx(st) {
   if (duel && duel.rolling && lc.from === duel.from && lc.to === duel.to && lc.t !== duel.shownT) {
     duel.shownT = lc.t;
     duelSettle(lc);
+  }
+  // via mare il server risolve tutto lo scontro in un colpo: l'arena lo
+  // ripercorre tiro per tiro invece di sbatterti in faccia il risultato
+  if (lc.kind === "sea" && sbarco && sbarco.fase === "attesa"
+      && lc.from === sbarco.from && lc.to === sbarco.to) {
+    sbarcoReplay(lc);
+    return;   // la freccia coi dadi la disegna l'arena a fine replay
   }
   // conquista tua: l'esito lo stai gia' guardando nel riquadro, e sulla mappa
   // conta solo il territorio che cambia colore. Per gli altri giocatori invece
@@ -930,7 +1057,7 @@ function noteCombatFx(st) {
     combatFx = null;
     return;
   }
-  combatFx = { t: lc.t, from: lc.from, to: lc.to, rolls: lc.rolls,
+  combatFx = { t: lc.t, from: lc.from, to: lc.to, rolls: lc.rolls, sea: lc.sea,
     attacker: lc.attacker, defender: lc.defender, conquered: lc.conquered };
   clearTimeout(combatFxTimer);
   combatFxTimer = setTimeout(() => { combatFx = null; renderAttackArrow(lastState); }, ATK_FX_MS);
@@ -1366,6 +1493,399 @@ function renderDuel() {
   box.append(btns);
 }
 
+/* ============ arena dello sbarco (§12) ============
+   Stessa grammatica dell'arena terrestre — cuneo sulla mappa, dadi che girano,
+   statuine che cadono — con le due differenze che il regolamento impone:
+   la forza si dichiara PRIMA di salpare ed e' quella che sbarchera', e non ci
+   si puo' ritirare: si combatte a oltranza finche' un lato e' annientato.
+   Il server risolve tutto lo scontro in un comando solo, quindi qui i tiri si
+   ripercorrono uno alla volta invece di mostrare il risultato secco. */
+const SBARCO_SPIN_MS = 420;    // quanto girano i dadi a ogni tiro
+const SBARCO_SPIN1_MS = 750;   // il primo dura di piu': e' quello che "apre"
+const SBARCO_HOLD_MS = 620;    // pausa a dadi fermi, per leggere l'esito
+
+let sbarco = null;   // {from,to,seaId,legioni,fase,start,cur,tot,rolls,idx,faces}
+let sbarcoSpin = null, sbarcoTimer = null;
+
+function openSbarco(from, to) {
+  const seaId = mareScelto(from, to);
+  if (!seaId) return;
+  const max = maxSbarco(from);
+  if (max < 1) return toast(`Da ${prov(from).name} non puoi imbarcare nessuno: ` +
+    "deve restarci la guarnigione minima.");
+  sbarco = {
+    from, to, seaId, fase: "imbarco",
+    // di default salpa tutto il salpabile: a oltranza mandarne pochi e' un
+    // suicidio, e chi vuole rischiare abbassa il cursore apposta
+    legioni: max,
+    start: { a: prov(from).legions, d: prov(to).legions },
+    tot: { att: 0, def: 0 },
+  };
+  renderSbarco();
+}
+
+/* §14.3: la guarnigione minima resta a terra e non si imbarca */
+function maxSbarco(from) {
+  return Math.max(0, prov(from).legions - minGarrisonOf(from));
+}
+
+function closeSbarco() {
+  clearInterval(sbarcoSpin); sbarcoSpin = null;
+  clearTimeout(sbarcoTimer); sbarcoTimer = null;
+  sbarco = null;
+  $("duelWrap").classList.remove("on");
+}
+
+function salpa() {
+  if (!sbarco || sbarco.fase !== "imbarco") return;
+  const { from, to, seaId, legioni } = sbarco;
+  sbarco.fase = "attesa";
+  // le forze in campo durante lo scontro: solo quelle imbarcate, non tutta la
+  // provincia di partenza. Chi resta a casa non fa parte di questa battaglia
+  sbarco.cur = { a: legioni, d: prov(to).legions };
+  sbarco.faces = { att: Array(Math.min(3, legioni)).fill(1),
+    def: Array(Math.min(3, prov(to).legions)).fill(1) };
+  sbarco.rolling = true;
+  clearInterval(sbarcoSpin);
+  sbarcoSpin = setInterval(() => {
+    if (!sbarco || !sbarco.faces) return;
+    const r = () => 1 + Math.floor(Math.random() * 6);
+    sbarco.faces.att = sbarco.faces.att.map(r);
+    sbarco.faces.def = sbarco.faces.def.map(r);
+    renderSbarco();
+  }, 80);
+  renderSbarco();
+  sendCmd("sea_attack", { from, to, seaId, legions: legioni });
+  // se l'esito non arriva (connessione caduta, comando perso) l'arena non deve
+  // restare appesa: si chiude e lo si dice, invece di far girare i dadi a vuoto
+  clearTimeout(sbarcoTimer);
+  sbarcoTimer = setTimeout(() => {
+    if (sbarco && sbarco.fase === "attesa") {
+      closeSbarco(); render();
+      toast("Nessuna risposta dal server: lo sbarco non è partito.");
+    }
+  }, 8000);
+}
+
+/* Lo scontro e' arrivato dal server gia' risolto per intero (§12.3: a oltranza,
+   non c'e' niente da decidere a meta'), ma i tiri NON si srotolano da soli:
+   li scopre il giocatore uno alla volta, con lo stesso gesto dell'arena
+   terrestre. I dadi che vede sono quelli veri del server, non ne rilanciamo di
+   nuovi: qui si decide solo il ritmo con cui vengono svelati. */
+function sbarcoReplay(lc) {
+  sbarco.rolls = lc.rolls;
+  sbarco.conquered = lc.conquered;
+  sbarco.idx = -1;        // nessun tiro ancora scoperto
+  sbarco.applicati = 0;   // ne' contato
+  sbarco.res = null;
+  sbarco.rolling = false;
+  sbarco.faces = null;
+  sbarco.fase = "battaglia";
+  renderSbarco();
+}
+
+/* un tiro: i dadi girano, poi si fermano e le legioni cadono */
+function sbarcoTira() {
+  // `inCorso` copre anche la pausa fra dadi fermi e legioni che cadono: senza,
+  // un secondo tocco in quella finestra faceva ripartire il tiro successivo e
+  // le perdite di quello appena visto non venivano mai contate
+  if (!sbarco || sbarco.rolling || sbarco.inCorso || sbarco.fase !== "battaglia") return;
+  sbarco.inCorso = true;
+  sbarco.idx++;
+  if (sbarco.idx >= sbarco.rolls.length) return sbarcoFine();
+
+  const r = sbarco.rolls[sbarco.idx];
+  sbarco.rolling = true;
+  sbarco.res = null;
+  sbarco.faces = { att: r.att.map(() => 1), def: r.def.map(() => 1) };
+
+  clearInterval(sbarcoSpin);
+  sbarcoSpin = setInterval(() => {
+    if (!sbarco || !sbarco.faces) return;
+    const d = () => 1 + Math.floor(Math.random() * 6);
+    sbarco.faces.att = sbarco.faces.att.map(d);
+    sbarco.faces.def = sbarco.faces.def.map(d);
+    renderSbarco();
+  }, 80);
+  renderSbarco();
+
+  sbarcoTimer = setTimeout(() => {
+    if (!sbarco) return;
+    clearInterval(sbarcoSpin); sbarcoSpin = null;
+    sbarco.faces = { att: [...r.att], def: [...r.def] };
+    sbarco.res = r;
+    sbarco.rolling = false;
+    renderSbarco();   // un attimo con le perdite ancora in piedi: si vedono cadere
+    sbarcoTimer = setTimeout(() => {
+      if (!sbarco || sbarco.res !== r) return;
+      applicaTiro(r);
+      sbarco.inCorso = false;
+      // l'ultimo tiro non lascia niente da premere: si passa al bilancio
+      if (sbarco.applicati >= sbarco.rolls.length) sbarcoFine();
+      // render() e non renderSbarco(): cosi' anche il gettone sulla mappa
+      // scala tiro dopo tiro insieme alle statuine nell'arena
+      else render();
+    }, SBARCO_HOLD_MS);
+  }, sbarco.idx === 0 ? SBARCO_SPIN1_MS : SBARCO_SPIN_MS);
+}
+
+/* perdite di un tiro scaricate sul campo. `applicati` tiene il conto di quelli
+   gia' contati: e' l'unica cosa che dice a che punto siamo, sia che i tiri li
+   scopra uno per uno sia che salti alla fine */
+function applicaTiro(r) {
+  sbarco.cur.a -= r.attLoss;
+  sbarco.cur.d -= r.defLoss;
+  sbarco.tot.att += r.attLoss;
+  sbarco.tot.def += r.defLoss;
+  sbarco.applicati++;
+}
+
+/* "Salta": chi ha gia' capito come va a finire non deve premere altre 11 volte */
+function sbarcoSalta() {
+  if (!sbarco || sbarco.fase !== "battaglia") return;
+  clearInterval(sbarcoSpin); sbarcoSpin = null;
+  clearTimeout(sbarcoTimer); sbarcoTimer = null;
+  while (sbarco.applicati < sbarco.rolls.length) applicaTiro(sbarco.rolls[sbarco.applicati]);
+  sbarco.idx = sbarco.rolls.length;
+  sbarco.faces = null;
+  sbarco.res = null;      // fa scadere l'eventuale tiro ancora in volo
+  sbarco.rolling = false;
+  sbarco.inCorso = false;
+  sbarcoFine();
+}
+
+function sbarcoFine() {
+  sbarco.fase = "esito";
+  sbarco.rolling = false;
+  // il congelamento cade proprio adesso: la provincia cambia colore sulla
+  // mappa nello stesso istante in cui l'arena annuncia com'e' andata
+  render();
+  // sulla mappa resta la traccia dello scontro, come per gli attacchi
+  // terrestri: la conquista pero' la stai gia' guardando qui dentro
+  const lc = lastState && lastState.lastCombat;
+  if (lc && lc.kind === "sea" && !lc.conquered) {
+    combatFx = { t: lc.t, from: lc.from, to: lc.to, rolls: lc.rolls, sea: lc.sea,
+      attacker: lc.attacker, defender: lc.defender, conquered: false };
+    clearTimeout(combatFxTimer);
+    combatFxTimer = setTimeout(() => { combatFx = null; renderAttackArrow(lastState); }, ATK_FX_MS);
+  }
+  renderAttackArrow(lastState);
+}
+
+function renderSbarco() {
+  const wrap = $("duelWrap"), box = $("duelBox");
+  if (!sbarco || !lastState) { wrap.classList.remove("on"); return; }
+  wrap.classList.add("on");
+  box.innerHTML = "";
+
+  const a = prov(sbarco.from), d = prov(sbarco.to);
+  const atkCol = COLOR_HEX[myColor()] || "#ccc";
+  // il difensore va congelato: appena conquisti la provincia e' gia' tua e il
+  // riquadro finirebbe per dirti che combattevi contro te stesso
+  if (!sbarco.defOwner) sbarco.defOwner = d.owner;
+  const defCol = ownerFill(sbarco.defOwner);
+  const defPl = lastState.players.find(p => p.color === sbarco.defOwner);
+  const defName = defPl ? defPl.name
+    : String(sbarco.defOwner || "?").startsWith("NEUTRAL_") ? "Neutrali" : String(sbarco.defOwner);
+
+  box.append(el("div", { class:"duelTitle" }, `${a.name} ⛵ ${d.name}`));
+
+  if (sbarco.fase === "imbarco") return renderSbarcoImbarco(box, a, d, atkCol, defCol);
+  if (sbarco.fase === "esito") return renderSbarcoEsito(box, a, d, atkCol, defCol, defName);
+
+  // ===== la battaglia: identica all'arena terrestre, senza scelta dei dadi =====
+  // il numero totale di tiri NON si mostra: e' vero che il server ha gia'
+  // risolto tutto, ma dirlo ("tiro 3 di 12") anticiperebbe quanto durera' lo
+  // scontro, cioe' mezzo risultato
+  box.append(el("div", { class:"duelSub" },
+    sbarco.fase === "attesa" ? `via ${sea(sbarco.seaId).name} · si salpa…`
+      : sbarco.idx < 0 ? `via ${sea(sbarco.seaId).name} · sbarco in corso`
+      : `via ${sea(sbarco.seaId).name} · tiro ${sbarco.idx + 1}`));
+
+  // prima del primo tiro i dadi stanno in tavola a riposo: tanti quanti ne
+  // tirera' ciascun lato con le forze attuali (§10.5: al massimo tre)
+  const faces = sbarco.faces || { att: Array(Math.min(3, Math.max(0, sbarco.cur.a))).fill(1),
+    def: Array(Math.min(3, Math.max(0, sbarco.cur.d))).fill(1) };
+  const ordina = arr => [...arr].sort((x, y) => y - x);
+  const att = ordina(faces.att), def = ordina(faces.def);
+  const res = !sbarco.rolling ? sbarco.res : null;
+
+  const arena = el("div", { class:"duelArena" });
+  const head = el("div", { class:"duelRow duelHead" });
+  head.append(el("div", { class:"duelWho", style:`color:${atkCol}` }, "Sbarco"),
+    el("div", { class:"duelVs" }, "⚔"),
+    el("div", { class:"duelWho", style:`color:${defCol}` }, defName));
+  arena.append(head);
+
+  const righe = Math.max(att.length, def.length);
+  for (let i = 0; i < righe; i++) {
+    const riga = el("div", { class:"duelRow" });
+    const sfida = att[i] !== undefined && def[i] !== undefined;
+    const attVince = sfida && att[i] > def[i];   // §10.5: la parita' e' del difensore
+    const mostraEsito = sfida && !!res;
+    riga.append(att[i] !== undefined
+      ? dieEl(att[i], atkCol, sbarco.rolling, mostraEsito ? (attVince ? "won" : "lost") : null)
+      : el("span", { class:"dieVuoto" }, "·"));
+    riga.append(mostraEsito ? cuneoEl(attVince, attVince ? atkCol : defCol)
+      : el("div", { class:"duelGap" }));
+    riga.append(def[i] !== undefined
+      ? dieEl(def[i], defCol, sbarco.rolling, mostraEsito ? (attVince ? "lost" : "won") : null)
+      : el("span", { class:"dieVuoto" }, "·"));
+    arena.append(riga);
+  }
+
+  // in campo ci sono solo gli imbarcati: chi e' rimasto a presidiare la
+  // provincia di partenza non c'entra con questa battaglia
+  const perse = s => res ? (s === "att" ? res.attLoss : res.defLoss) : 0;
+  const forze = el("div", { class:"duelRow duelForze" });
+  forze.append(schieraEl(sbarco.cur.a, perse("att"), atkCol),
+    el("div", { class:"duelGap" }),
+    schieraEl(sbarco.cur.d, perse("def"), defCol));
+  arena.append(forze);
+  box.append(arena);
+
+  const cnt = el("div", { class:"duelRow duelCount" });
+  cnt.append(el("div", { class:"lossA" }, `perdite: ${sbarco.tot.att}`),
+    el("div", { class:"duelGap" }),
+    el("div", { class:"lossD" }, `perdite: ${sbarco.tot.def}`));
+  box.append(cnt);
+
+  // i tiri li tira il giocatore, come a terra. Quello che manca rispetto
+  // all'arena terrestre e' la ritirata: §12.3 non la contempla, si va avanti
+  // finche' uno dei due eserciti non esiste piu'
+  const btns = el("div", { class:"duelBtns" });
+  if (sbarco.fase === "battaglia") {
+    const occupato = sbarco.rolling || sbarco.inCorso;
+    const b = el("button", { class:"salpa" },
+      occupato ? "…" : sbarco.idx < 0 ? "Tira! 🎲" : "Tira ancora");
+    b.disabled = occupato;
+    b.onclick = sbarcoTira;
+    btns.append(b);
+    const s = el("button", {}, "Salta »");
+    s.disabled = sbarco.rolling;
+    s.onclick = sbarcoSalta;
+    btns.append(s);
+  }
+  box.append(btns);
+}
+
+/* ===== imbarco: la scelta che non si puo' piu' cambiare ===== */
+function renderSbarcoImbarco(box, a, d, atkCol, defCol) {
+  const max = maxSbarco(sbarco.from);
+  box.append(el("div", { class:"duelSub" },
+    `${d.legions} legioni a difesa di ${d.name}`));
+
+  // la rotta: se i due lidi si affacciano su piu' mari, si sceglie da quale.
+  // I mari senza superiorita' restano in elenco, spenti e col perche': sparire
+  // in silenzio lasciava il dubbio di un bug invece della regola (§12.2)
+  const rotte = mariComuni(sbarco.from, sbarco.to);
+  if (rotte.length > 1) {
+    const pick = el("div", { class:"duelPick" });
+    pick.append(el("span", { class:"lbl" }, "Rotta:"));
+    rotte.forEach(sid => {
+      const ok = superioritaNavale(sid, sbarco.defOwner);
+      const b = el("button", { class: sid === sbarco.seaId ? "sel" : "" }, sea(sid).name);
+      if (!ok) {
+        b.disabled = true;
+        const mie = myTriremes(sid);
+        const loro = (sea(sid).triremes || {})[sbarco.defOwner] || 0;
+        b.title = `Triremi: tu ${mie}, lui ${loro}. Ne servono di più (§12.2).`;
+      } else {
+        b.onclick = () => { sbarco.seaId = sid; ui.vals.saSea = sid; renderSbarco(); render(); };
+      }
+      pick.append(b);
+    });
+    box.append(pick);
+    if (rotte.some(sid => !superioritaNavale(sid, sbarco.defOwner))) {
+      box.append(el("div", { class:"duelSub", style:"margin-top:4px" },
+        "Le rotte spente sono mari dove non hai più triremi del difensore."));
+    }
+  }
+
+  sbarco.legioni = Math.max(1, Math.min(max, sbarco.legioni));
+  box.append(el("div", { class:"duelSub", style:"margin-top:12px" },
+    `Quante legioni salpano da ${a.name}?`));
+
+  // le due schiere si dividono sotto gli occhi: chi presidia e chi si imbarca
+  const split = el("div", { class:"duelRow duelSplit" });
+  const lato = (nome, n) => {
+    const c = el("div", { class:"statCol" });
+    c.append(el("div", { class:"statWho" }, nome));
+    c.append(schieraEl(n, 0, atkCol));
+    return c;
+  };
+  split.append(lato(`restano a ${a.name}`, a.legions - sbarco.legioni),
+    el("div", { class:"duelVs" }, "⛵"),
+    lato("salpano", sbarco.legioni));
+  box.append(split);
+
+  const pick = el("div", { class:"duelPick" });
+  const meno = el("button", {}, "−");
+  meno.onclick = () => { sbarco.legioni--; renderSbarco(); };
+  meno.disabled = sbarco.legioni <= 1;
+  const piu = el("button", {}, "+");
+  piu.onclick = () => { sbarco.legioni++; renderSbarco(); };
+  piu.disabled = sbarco.legioni >= max;
+  pick.append(meno, el("span", { class:"duelQta" }, String(sbarco.legioni)), piu);
+  box.append(pick);
+
+  const range = el("input", { type:"range", min:"1", max:String(Math.max(1, max)),
+    value:String(sbarco.legioni), class:"duelRange" });
+  range.oninput = e => { sbarco.legioni = Number(e.target.value); renderSbarco(); };
+  box.append(range);
+
+  // il punto in cui l'attacco via mare smette di somigliare a quello terrestre
+  box.append(el("div", { class:"duelWarn sbarcoWarn" },
+    "⚔️ Si combatte a oltranza: non ci si può ritirare. " +
+    "Chi salpa vince e sbarca, oppure muore in mare."));
+
+  const btns = el("div", { class:"duelBtns" });
+  const go = el("button", { class:"salpa" }, `Salpa con ${sbarco.legioni} ⛵`);
+  go.onclick = salpa;
+  const ann = el("button", {}, "Annulla");
+  ann.onclick = () => { closeSbarco(); render(); };
+  btns.append(go, ann);
+  box.append(btns);
+}
+
+/* ===== esito: qui non si sceglie niente, il regolamento ha gia' deciso ===== */
+function renderSbarcoEsito(box, a, d, atkCol, defCol, defName) {
+  const vinto = sbarco.conquered;
+  box.append(el("div", { class: vinto ? "duelTitle duelWin" : "duelTitle duelLose" },
+    vinto ? `Sbarco riuscito: ${d.name} è tua! 🏛️`
+      : `Lo sbarco su ${d.name} è fallito`));
+  const n = sbarco.cur.a;
+  box.append(el("div", { class:"duelSub" },
+    vinto ? `${n} ${n === 1 ? "legione sbarcata" : "legioni sbarcate"} · via ${sea(sbarco.seaId).name}`
+      : `Nessuno è tornato indietro · via ${sea(sbarco.seaId).name}`));
+
+  const stat = el("div", { class:"duelStats" });
+  const colonna = (titolo, color, iniziali, perse) => {
+    const c = el("div", { class:"statCol" });
+    c.append(el("div", { class:"statWho", style:`color:${color}` }, titolo));
+    c.append(el("div", { class:"statRiga" },
+      el("span", { class:"statNum" }, String(iniziali)), " imbarcati"));
+    c.append(el("div", { class:"statRiga" },
+      el("span", { class:"statNum statPerse" }, `−${perse}`), " caduti"));
+    const resto = Math.max(0, iniziali - perse);
+    c.append(el("div", { class:"statRiga statResto" },
+      el("span", { class:"statNum" }, String(resto)), resto === 1 ? " superstite" : " superstiti"));
+    return c;
+  };
+  const colDif = colonna(defName, defCol, sbarco.start.d, sbarco.tot.def);
+  // "imbarcati" vale solo per chi e' salpato: il difensore era gia' a casa sua
+  colDif.querySelectorAll(".statRiga")[0].lastChild.textContent = " a difesa";
+  stat.append(colonna("Sbarco", atkCol, sbarco.legioni, sbarco.tot.att),
+    el("div", { class:"duelGap" }), colDif);
+  box.append(stat);
+
+  const btns = el("div", { class:"duelBtns" });
+  const b = el("button", {}, vinto ? "Va bene" : "Chiudi");
+  b.onclick = () => { ui.sel = {}; closeSbarco(); render(); };
+  btns.append(b);
+  box.append(btns);
+}
+
 function renderScoreTrack(st) {
   // casella dell'obiettivo: un bordo evidenziato, come segnare la meta'
   const goal = $("trkGoal");
@@ -1670,10 +2190,21 @@ function computeClickables() {
       return myTriremes(id) > 0 && Object.entries(t).some(([c,n]) => c !== myColor() && n > 0);
     }).forEach(id => seas.add(id));
   } else if (ph === "SEA_ATTACKS") {
-    if (!ui.sel.from) all.filter(id => isMine(id) && prov(id).adj_sea.length && prov(id).legions > 1).forEach(id => provs.add(id));
+    // niente vicoli ciechi: si illumina solo cio' da cui si puo' davvero
+    // salpare (§12.7 + guarnigione §14.3) verso cio' che si puo' davvero
+    // colpire (§12.6). Prima si accendevano anche le province che il server
+    // avrebbe poi rifiutato
+    const conq = new Set(st.turn.seaConqueredProvinces || []);
+    const colpite = new Set(st.turn.seaAttackedProvinces || []);
+    const basi = id => isMine(id) && prov(id).adj_sea.length
+      && !conq.has(id) && prov(id).legions - minGarrisonOf(id) >= 1;
+    if (!ui.sel.from) all.filter(id => basi(id) && haBersagliVieMare(id)).forEach(id => provs.add(id));
     else {
-      const fromSeas = new Set(prov(ui.sel.from).adj_sea);
-      all.filter(id => isEnemy(id) && prov(id).adj_sea.some(s => fromSeas.has(s))).forEach(id => provs.add(id));
+      all.filter(id => isEnemy(id) && !colpite.has(id)
+        && rotteBuone(ui.sel.from, id).length).forEach(id => provs.add(id));
+      // puntato il bersaglio si accendono i mari da cui si puo' passare:
+      // sono il prossimo tocco
+      if (ui.sel.to) rotteBuone(ui.sel.from, ui.sel.to).forEach(sid => seas.add(sid));
     }
   } else if (ph === "LAND_ATTACKS") {
     if (!st.pending.occupation) {
@@ -1760,8 +2291,34 @@ function onProvClick(id) {
     }
   }
   else if (ph === "SEA_ATTACKS") {
-    if (isMine(id)) { ui.sel.from = id; ui.sel.to = null; }
-    else if (isEnemy(id) && ui.sel.from) ui.sel.to = id;
+    if (isMine(id)) {
+      // le regole valgono anche al tocco, non solo nell'evidenziazione: da qui
+      // il rifiuto arrivava dal server dopo aver gia' scelto forza e rotta
+      if ((lastState.turn.seaConqueredProvinces || []).includes(id))
+        return toast(`${prov(id).name} è stata conquistata via mare in questo turno: ` +
+          "non può sferrare un altro attacco via mare (§12.7).");
+      if (prov(id).legions - minGarrisonOf(id) < 1)
+        return toast(`Da ${prov(id).name} non puoi imbarcare nessuno: deve restarci la guarnigione.`);
+      ui.sel.from = id; ui.sel.to = null; ui.vals.saSea = null;
+    }
+    else if (isEnemy(id) && ui.sel.from) {
+      if ((lastState.turn.seaAttackedProvinces || []).includes(id))
+        return toast(`${prov(id).name} ha già subito un attacco via mare in questo turno (§12.6).`);
+      const rotte = rotteBuone(ui.sel.from, id);
+      if (!rotte.length) return toast(`Per sbarcare in ${prov(id).name} ti servono più triremi ` +
+        "del difensore nel mare di passaggio (§12.2).");
+      if (ui.sel.to !== id) {
+        // nuovo bersaglio: la rotta di prima non vale piu'
+        ui.sel.to = id;
+        ui.vals.saSea = null;
+        // una sola rotta possibile non e' una scelta: la si prende e basta
+        if (rotte.length === 1) ui.vals.saSea = rotte[0];
+      } else if (ui.vals.saSea) {
+        // bersaglio gia' puntato con la rotta decisa: il secondo tocco imbarca,
+        // come a terra. Con piu' rotte aperte tocca prima scegliere il mare
+        openSbarco(ui.sel.from, id);
+      }
+    }
   }
   else if (ph === "LAND_ATTACKS" && !lastState.pending.occupation) {
     if (isMine(id)) { ui.sel.from = id; ui.sel.to = null; }
@@ -1808,6 +2365,15 @@ function onSeaClick(id) {
   else if (ph === "NAVAL_COMBAT") {
     ui.sel.sea = id; ui.sel.target = null;
   }
+  else if (ph === "SEA_ATTACKS" && ui.sel.from && ui.sel.to) {
+    // la rotta si sceglie sulla plancia, non in un menu a tendina: puntato il
+    // bersaglio, i mari percorribili si accendono e quello che tocchi diventa
+    // il ponte della traversata (§12.2)
+    if (rotteBuone(ui.sel.from, ui.sel.to).includes(id)) {
+      ui.vals.saSea = id;
+      openSbarco(ui.sel.from, ui.sel.to);
+    }
+  }
   render();
 }
 
@@ -1850,6 +2416,16 @@ function render() {
     if (!vivo) closeDuel(); else renderDuel();
   }
 
+  // l'arena dello sbarco: una volta salpati resta su fino all'esito, anche se
+  // la provincia ha gia' cambiato colore. Chiude solo se la fase o il turno
+  // cambiano sotto i piedi
+  if (sbarco) {
+    const inCorso = sbarco.fase !== "imbarco";
+    const vivo = st.turn.phase === "SEA_ATTACKS" && isMyTurn()
+      && (inCorso || (isMine(sbarco.from) && isEnemy(sbarco.to)));
+    if (!vivo) closeSbarco(); else renderSbarco();
+  }
+
   // vittoria
   if (st.winner) {
     $("bannerText").textContent = `🏆 ${st.winner} vince!`;
@@ -1874,13 +2450,33 @@ function renderMapHud(st, tp) {
   box.append(line);
 }
 
+/* Il gettone della provincia sotto sbarco, com'e' MENTRE lo scontro si gioca:
+   il server ha gia' risolto tutto in un colpo, ma finche' i tiri si scoprono
+   uno alla volta la mappa deve raccontare solo quello che si e' visto. Le
+   legioni calano tiro dopo tiro, e il colore cambia solo alla fine.
+   La provincia di partenza non serve congelarla: ha gia' perso gli imbarcati,
+   ed e' giusto che si veda. */
+function congelatoDaSbarco(id) {
+  if (!sbarco || !sbarco.cur) return null;
+  if (sbarco.fase !== "attesa" && sbarco.fase !== "battaglia") return null;
+  if (id !== sbarco.to) return null;
+  const vero = lastState.map.provinces[id];
+  return { owner: sbarco.defOwner || vero.owner,
+    legions: Math.max(0, sbarco.cur.d), power_center: vero.power_center };
+}
+
 function renderMapState(st) {
   const { provs: clkP, seas: clkS } = computeClickables();
   const defs = new Set(isMyTurn() && ["REINFORCE_LAND", "STRATEGIC_MOVE"].includes(st.turn.phase)
     ? garrisonDeficits().filter(id => !(ui.placements[id] > 0)) : []);
-  for (const [id, pr] of Object.entries(st.map.provinces)) {
+  for (const [id, pr0] of Object.entries(st.map.provinces)) {
     const g = $(`prov_${id}`);
     if (!g) continue;
+    // finche' lo sbarco si sta ancora giocando tiro per tiro, i due gettoni
+    // coinvolti restano com'erano: il server ha gia' risolto tutto, e senza
+    // questo la mappa dietro l'arena mostrerebbe la conquista mentre stai
+    // ancora tirando il primo colpo
+    const pr = congelatoDaSbarco(id) || pr0;
     g.querySelector("circle.pip").setAttribute("fill", ownerFill(pr.owner));
     const extra = ui.placements[id] ? `+${ui.placements[id]}` : "";
     g.querySelector(".lg").textContent = pr.legions > 0 ? `${pr.legions}${extra}` : (extra || "");
@@ -2282,29 +2878,18 @@ function renderActions(st) {
   }
 
   if (ph === "SEA_ATTACKS") {
-    add(hint("Attacco via mare: tua provincia costiera → provincia nemica oltre un mare che controlli."));
-    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}${ui.sel.to ? " → " + prov(ui.sel.to).name : ""}`));
-    if (ui.sel.from && ui.sel.to) {
-      const common = prov(ui.sel.from).adj_sea.filter(s => prov(ui.sel.to).adj_sea.includes(s));
-      const s = el("select", { oninput: e => { ui.vals.saSea = e.target.value; } });
-      common.forEach(sid => {
-        const o = el("option", { value: sid }, sea(sid).name);
-        if ((ui.vals.saSea || common[0]) === sid) o.selected = true;
-        s.append(o);
-      });
-      // §14.3: la guarnigione minima limita quante legioni possono salpare
-      const maxL = prov(ui.sel.from).legions - minGarrisonOf(ui.sel.from);
-      add(row(el("label", {}, "Mare:"), s));
-      add(sliderRow("Legioni:", "saLeg", Math.min(3, maxL), 1, Math.max(1, maxL)));
-      add(row(actionBtn("Attacca ⚔️", () => {
-        sendCmd("sea_attack", {
-          from: ui.sel.from, to: ui.sel.to,
-          seaId: ui.vals.saSea || common[0],
-          legions: valNum("saLeg", Math.min(3, maxL)),
-        });
-        ui.sel = {};
-      }, "primary")));
-    }
+    const rotte = ui.sel.from && ui.sel.to ? rotteBuone(ui.sel.from, ui.sel.to) : [];
+    const rotta = rotte.includes(ui.vals.saSea) ? ui.vals.saSea : null;
+    add(hint(!ui.sel.from ? "Attacco via mare: tocca la tua provincia costiera di partenza."
+      : !ui.sel.to ? "Ora tocca la provincia nemica da attaccare, oltre un mare in cui hai più triremi."
+      : !rotta ? "Scegli la rotta: tocca sulla mappa uno dei mari illuminati."
+      : "Tocca di nuovo il bersaglio (o il mare) per imbarcare."));
+    if (ui.sel.from) add(selInfo(`Da: ${prov(ui.sel.from).name}` +
+      (ui.sel.to ? ` ⛵ ${prov(ui.sel.to).name}` : "") +
+      (rotta ? ` · via ${sea(rotta).name}` : "")));
+    // la scelta della forza si fa nell'arena, come a terra: qui resta solo la
+    // scorciatoia per aprirla, e solo quando la rotta e' decisa
+    if (rotta) add(row(actionBtn("Imbarca ⛵", () => openSbarco(ui.sel.from, ui.sel.to), "primary")));
     add(row(actionBtn("Fine attacchi via mare", () => sendCmd("end_phase"))));
     return;
   }
@@ -2386,7 +2971,7 @@ function maybeShowCombatPop(st) {
   if (shownCombatT === null) { shownCombatT = lc ? lc.t : 0; return; } // niente popup al primo stato
   if (!lc || lc.t === shownCombatT) return;
   shownCombatT = lc.t;
-  if (duel) return;   // l'arena mostra gia' il tiro: niente doppio popup
+  if (duel || sbarco) return;   // l'arena mostra gia' il tiro: niente doppio popup
   if (!window.matchMedia("(max-width: 820px)").matches) return;
   const pop = $("combatPop");
   pop.innerHTML = $("combatBox").innerHTML;
